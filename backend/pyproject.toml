@@ -8,8 +8,11 @@ version = "0.1.0"
 description = "Portfolio analytics MVP backend"
 requires-python = ">=3.11"
 dependencies = [
+  "asyncpg>=0.29.0,<1.0.0",
   "fastapi>=0.115.0,<1.0.0",
   "pydantic-settings>=2.6.0,<3.0.0",
+  "redis>=5.2.0,<6.0.0",
+  "sqlalchemy>=2.0.36,<3.0.0",
   "uvicorn[standard]>=0.32.0,<1.0.0",
 ]
 
