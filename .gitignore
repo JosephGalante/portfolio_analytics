@@ -7,5 +7,8 @@ __pycache__/
 backend/build/
 backend/dist/
 backend/*.egg-info/
+frontend/.next/
+frontend/node_modules/
+frontend/.env.local
 postgres-data/
 redis-data/

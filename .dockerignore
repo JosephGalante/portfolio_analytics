@@ -12,6 +12,8 @@ backend/.venv
 backend/build
 backend/dist
 backend/*.egg-info
+frontend/.next
+frontend/node_modules
 
 postgres-data
 redis-data
