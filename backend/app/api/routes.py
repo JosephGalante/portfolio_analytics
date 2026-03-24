@@ -6,6 +6,7 @@ from app.api.meta import router as meta_router
 from app.api.portfolios import router as portfolios_router
 from app.api.snapshots import router as snapshots_router
 from app.api.valuations import router as valuations_router
+from app.api.websocket import router as websocket_router
 
 router = APIRouter()
 router.include_router(meta_router)
@@ -14,3 +15,4 @@ router.include_router(portfolios_router)
 router.include_router(holdings_router)
 router.include_router(valuations_router)
 router.include_router(snapshots_router)
+router.include_router(websocket_router)
