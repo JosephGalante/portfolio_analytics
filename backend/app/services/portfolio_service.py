@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.holding import Holding
 from app.models.portfolio import Portfolio
 from app.models.user import User
 
@@ -40,3 +41,10 @@ async def get_portfolio_for_user(
     if portfolio is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found")
     return portfolio
+
+
+async def list_portfolio_ids_for_symbol(session: AsyncSession, symbol: str) -> list[UUID]:
+    result = await session.execute(
+        select(Holding.portfolio_id).where(Holding.symbol == symbol.upper()).distinct()
+    )
+    return list(result.scalars().all())

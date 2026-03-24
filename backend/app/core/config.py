@@ -18,6 +18,27 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     seeded_user_email: str = "demo@example.com"
     seeded_user_name: str = "Demo User"
+    simulator_symbols: str = "AAPL,MSFT,NVDA,GOOGL,AMZN"
+    simulator_tick_interval_ms: int = 1500
+    simulator_initial_price_aapl: str = "185.00"
+    simulator_initial_price_msft: str = "420.00"
+    simulator_initial_price_nvda: str = "910.00"
+    simulator_initial_price_googl: str = "145.00"
+    simulator_initial_price_amzn: str = "180.00"
+
+    @property
+    def symbol_list(self) -> list[str]:
+        return [symbol.strip().upper() for symbol in self.simulator_symbols.split(",") if symbol.strip()]
+
+    @property
+    def initial_prices(self) -> dict[str, str]:
+        return {
+            "AAPL": self.simulator_initial_price_aapl,
+            "MSFT": self.simulator_initial_price_msft,
+            "NVDA": self.simulator_initial_price_nvda,
+            "GOOGL": self.simulator_initial_price_googl,
+            "AMZN": self.simulator_initial_price_amzn,
+        }
 
 
 @lru_cache
