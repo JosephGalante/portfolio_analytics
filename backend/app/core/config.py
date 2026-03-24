@@ -16,6 +16,8 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://portfolio:portfolio@localhost:5432/portfolio_analytics"
     redis_url: str = "redis://localhost:6379/0"
+    seeded_user_email: str = "demo@example.com"
+    seeded_user_name: str = "Demo User"
 
 
 @lru_cache
