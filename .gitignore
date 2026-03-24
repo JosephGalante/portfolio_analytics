@@ -7,3 +7,5 @@ __pycache__/
 backend/build/
 backend/dist/
 backend/*.egg-info/
+postgres-data/
+redis-data/

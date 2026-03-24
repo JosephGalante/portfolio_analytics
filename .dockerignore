@@ -1,0 +1,17 @@
+.git
+.gitignore
+.vscode
+pyrightconfig.json
+README.md
+
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+
+backend/.venv
+backend/build
+backend/dist
+backend/*.egg-info
+
+postgres-data
+redis-data

@@ -1,0 +1,101 @@
+x-backend-env: &backend-env
+  APP_NAME: ${APP_NAME:-Portfolio Analytics}
+  APP_VERSION: ${APP_VERSION:-0.1.0}
+  APP_ENV: ${APP_ENV:-local}
+  APP_HOST: ${APP_HOST:-0.0.0.0}
+  APP_PORT: ${APP_PORT:-8000}
+  APP_CORS_ORIGINS: ${APP_CORS_ORIGINS:-["http://localhost:3000"]}
+  DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://portfolio:portfolio@postgres:5432/portfolio_analytics}
+  REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+  SEEDED_USER_EMAIL: ${SEEDED_USER_EMAIL:-demo@example.com}
+  SEEDED_USER_NAME: ${SEEDED_USER_NAME:-Demo User}
+  SIMULATOR_SYMBOLS: ${SIMULATOR_SYMBOLS:-AAPL,MSFT,NVDA,GOOGL,AMZN}
+  SIMULATOR_TICK_INTERVAL_MS: ${SIMULATOR_TICK_INTERVAL_MS:-1500}
+  SIMULATOR_INITIAL_PRICE_AAPL: ${SIMULATOR_INITIAL_PRICE_AAPL:-185.00}
+  SIMULATOR_INITIAL_PRICE_MSFT: ${SIMULATOR_INITIAL_PRICE_MSFT:-420.00}
+  SIMULATOR_INITIAL_PRICE_NVDA: ${SIMULATOR_INITIAL_PRICE_NVDA:-910.00}
+  SIMULATOR_INITIAL_PRICE_GOOGL: ${SIMULATOR_INITIAL_PRICE_GOOGL:-145.00}
+  SIMULATOR_INITIAL_PRICE_AMZN: ${SIMULATOR_INITIAL_PRICE_AMZN:-180.00}
+
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-portfolio_analytics}
+      POSTGRES_USER: ${POSTGRES_USER:-portfolio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-portfolio}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-portfolio} -d ${POSTGRES_DB:-portfolio_analytics}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - ./redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "${API_PORT:-8000}:8000"
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    command: ["python", "-m", "app.workers.valuation_worker"]
+
+  simulator:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment: *backend-env
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: ["python", "-m", "app.workers.simulator"]
