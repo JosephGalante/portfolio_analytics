@@ -22,9 +22,7 @@ async def create_portfolio(session: AsyncSession, user: User, name: str) -> Port
 
 async def list_portfolios(session: AsyncSession, user_id: UUID) -> list[Portfolio]:
     result = await session.execute(
-        select(Portfolio)
-        .where(Portfolio.user_id == user_id)
-        .order_by(Portfolio.created_at.desc())
+        select(Portfolio).where(Portfolio.user_id == user_id).order_by(Portfolio.created_at.desc())
     )
     return list(result.scalars().all())
 

@@ -14,7 +14,9 @@ class Settings(BaseSettings):
     app_port: int = 8000
     app_cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
 
-    database_url: str = "postgresql+asyncpg://portfolio:portfolio@localhost:5432/portfolio_analytics"
+    database_url: str = (
+        "postgresql+asyncpg://portfolio:portfolio@localhost:5432/portfolio_analytics"
+    )
     redis_url: str = "redis://localhost:6379/0"
     seeded_user_email: str = "demo@example.com"
     seeded_user_name: str = "Demo User"
@@ -28,7 +30,9 @@ class Settings(BaseSettings):
 
     @property
     def symbol_list(self) -> list[str]:
-        return [symbol.strip().upper() for symbol in self.simulator_symbols.split(",") if symbol.strip()]
+        return [
+            symbol.strip().upper() for symbol in self.simulator_symbols.split(",") if symbol.strip()
+        ]
 
     @property
     def initial_prices(self) -> dict[str, str]:

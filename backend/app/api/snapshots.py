@@ -21,7 +21,9 @@ async def get_portfolio_snapshots(
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[PortfolioSnapshotRead]:
-    portfolio = await portfolio_service.get_portfolio_for_user(session, portfolio_id, current_user.id)
+    portfolio = await portfolio_service.get_portfolio_for_user(
+        session, portfolio_id, current_user.id
+    )
     snapshots = await snapshot_service.list_snapshots(
         session,
         portfolio.id,

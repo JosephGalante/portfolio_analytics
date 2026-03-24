@@ -22,7 +22,9 @@ async def get_portfolio_valuation(
     redis_client: Redis = Depends(get_redis),
     current_user: User = Depends(get_current_user),
 ) -> PortfolioValuationRead:
-    portfolio = await portfolio_service.get_portfolio_for_user(session, portfolio_id, current_user.id)
+    portfolio = await portfolio_service.get_portfolio_for_user(
+        session, portfolio_id, current_user.id
+    )
     cached = await valuation_service.get_cached_valuation(redis_client, portfolio.id)
     if cached is not None:
         return cached

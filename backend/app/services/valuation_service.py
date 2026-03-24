@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from uuid import UUID
 
 from redis.asyncio import Redis
@@ -35,7 +35,9 @@ async def get_cached_valuation(
 
 
 async def cache_valuation(redis_client: Redis, valuation: PortfolioValuationRead) -> None:
-    await redis_client.set(portfolio_valuation_key(valuation.portfolio_id), valuation.model_dump_json())
+    await redis_client.set(
+        portfolio_valuation_key(valuation.portfolio_id), valuation.model_dump_json()
+    )
 
 
 async def publish_valuation_update(redis_client: Redis, valuation: PortfolioValuationRead) -> None:

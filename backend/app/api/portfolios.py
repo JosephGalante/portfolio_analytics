@@ -38,7 +38,9 @@ async def get_portfolio(
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> PortfolioDetailRead:
-    portfolio = await portfolio_service.get_portfolio_for_user(session, portfolio_id, current_user.id)
+    portfolio = await portfolio_service.get_portfolio_for_user(
+        session, portfolio_id, current_user.id
+    )
     return PortfolioDetailRead(
         id=portfolio.id,
         name=portfolio.name,

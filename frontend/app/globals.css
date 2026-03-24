@@ -20,7 +20,11 @@
 
 html {
   background:
-    radial-gradient(circle at top left, rgba(224, 108, 47, 0.18), transparent 30%),
+    radial-gradient(
+      circle at top left,
+      rgba(224, 108, 47, 0.18),
+      transparent 30%
+    ),
     linear-gradient(135deg, var(--bg) 0%, #ebe2d1 45%, var(--bg-accent) 100%);
 }
 
@@ -154,7 +158,11 @@ input {
 }
 
 .accent {
-  background: linear-gradient(145deg, rgba(35, 83, 71, 0.96), rgba(31, 57, 62, 0.96));
+  background: linear-gradient(
+    145deg,
+    rgba(35, 83, 71, 0.96),
+    rgba(31, 57, 62, 0.96)
+  );
   color: #f8f1e8;
 }
 

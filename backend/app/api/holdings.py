@@ -20,7 +20,9 @@ async def upsert_holding(
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> HoldingRead:
-    portfolio = await portfolio_service.get_portfolio_for_user(session, portfolio_id, current_user.id)
+    portfolio = await portfolio_service.get_portfolio_for_user(
+        session, portfolio_id, current_user.id
+    )
     holding = await holding_service.upsert_holding(session, portfolio, payload)
     return HoldingRead.model_validate(holding)
 
@@ -31,6 +33,8 @@ async def list_holdings(
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[HoldingRead]:
-    portfolio = await portfolio_service.get_portfolio_for_user(session, portfolio_id, current_user.id)
+    portfolio = await portfolio_service.get_portfolio_for_user(
+        session, portfolio_id, current_user.id
+    )
     holdings = await holding_service.list_holdings(session, portfolio.id)
     return [HoldingRead.model_validate(holding) for holding in holdings]

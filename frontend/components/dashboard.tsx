@@ -1,6 +1,13 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 
 import {
   createPortfolio,
@@ -19,7 +26,8 @@ import {
   PortfolioValuation,
 } from "../lib/types";
 
-const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_BASE_URL ?? "ws://localhost:8000";
+const WS_BASE_URL =
+  process.env.NEXT_PUBLIC_WS_BASE_URL ?? "ws://localhost:8000";
 
 function formatMoney(value: string): string {
   return new Intl.NumberFormat("en-US", {
@@ -41,8 +49,11 @@ function formatTimestamp(value: string): string {
 export function Dashboard() {
   const [isPending, startTransition] = useTransition();
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
-  const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(null);
-  const [portfolioDetail, setPortfolioDetail] = useState<PortfolioDetail | null>(null);
+  const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(
+    null,
+  );
+  const [portfolioDetail, setPortfolioDetail] =
+    useState<PortfolioDetail | null>(null);
   const [holdings, setHoldings] = useState<Holding[]>([]);
   const [valuation, setValuation] = useState<PortfolioValuation | null>(null);
   const [snapshots, setSnapshots] = useState<PortfolioSnapshot[]>([]);
@@ -53,37 +64,49 @@ export function Dashboard() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const selectedPortfolio = useMemo(
-    () => portfolios.find((portfolio) => portfolio.id === selectedPortfolioId) ?? null,
+    () =>
+      portfolios.find((portfolio) => portfolio.id === selectedPortfolioId) ??
+      null,
     [portfolios, selectedPortfolioId],
   );
 
-  async function refreshPortfolios(preferredPortfolioId?: string) {
-    const nextPortfolios = await listPortfolios();
-    startTransition(() => {
-      setPortfolios(nextPortfolios);
-      if (nextPortfolios.length === 0) {
-        setSelectedPortfolioId(null);
-        return;
-      }
+  const refreshPortfolios = useCallback(
+    async (preferredPortfolioId?: string) => {
+      const nextPortfolios = await listPortfolios();
+      startTransition(() => {
+        setPortfolios(nextPortfolios);
+        if (nextPortfolios.length === 0) {
+          setSelectedPortfolioId(null);
+          return;
+        }
 
-      const targetId =
-        preferredPortfolioId && nextPortfolios.some((portfolio) => portfolio.id === preferredPortfolioId)
-          ? preferredPortfolioId
-          : selectedPortfolioId && nextPortfolios.some((portfolio) => portfolio.id === selectedPortfolioId)
-            ? selectedPortfolioId
-            : nextPortfolios[0].id;
+        const targetId =
+          preferredPortfolioId &&
+          nextPortfolios.some(
+            (portfolio) => portfolio.id === preferredPortfolioId,
+          )
+            ? preferredPortfolioId
+            : selectedPortfolioId &&
+                nextPortfolios.some(
+                  (portfolio) => portfolio.id === selectedPortfolioId,
+                )
+              ? selectedPortfolioId
+              : nextPortfolios[0].id;
 
-      setSelectedPortfolioId(targetId);
-    });
-  }
+        setSelectedPortfolioId(targetId);
+      });
+    },
+    [selectedPortfolioId],
+  );
 
-  async function refreshSelectedPortfolio(portfolioId: string) {
-    const [detail, nextHoldings, nextValuation, nextSnapshots] = await Promise.all([
-      getPortfolio(portfolioId),
-      listHoldings(portfolioId),
-      getValuation(portfolioId),
-      listSnapshots(portfolioId),
-    ]);
+  const refreshSelectedPortfolio = useCallback(async (portfolioId: string) => {
+    const [detail, nextHoldings, nextValuation, nextSnapshots] =
+      await Promise.all([
+        getPortfolio(portfolioId),
+        listHoldings(portfolioId),
+        getValuation(portfolioId),
+        listSnapshots(portfolioId),
+      ]);
 
     startTransition(() => {
       setPortfolioDetail(detail);
@@ -91,11 +114,11 @@ export function Dashboard() {
       setValuation(nextValuation);
       setSnapshots(nextSnapshots);
     });
-  }
+  }, []);
 
   useEffect(() => {
     refreshPortfolios().catch((error: Error) => setErrorMessage(error.message));
-  }, []);
+  }, [refreshPortfolios]);
 
   useEffect(() => {
     if (!selectedPortfolioId) {
@@ -111,14 +134,16 @@ export function Dashboard() {
     refreshSelectedPortfolio(selectedPortfolioId).catch((error: Error) => {
       setErrorMessage(error.message);
     });
-  }, [selectedPortfolioId]);
+  }, [refreshSelectedPortfolio, selectedPortfolioId]);
 
   useEffect(() => {
     if (!selectedPortfolioId) {
       return;
     }
 
-    const websocket = new WebSocket(`${WS_BASE_URL}/ws/portfolios/${selectedPortfolioId}`);
+    const websocket = new WebSocket(
+      `${WS_BASE_URL}/ws/portfolios/${selectedPortfolioId}`,
+    );
     websocket.onmessage = (event) => {
       const nextValuation = JSON.parse(event.data) as PortfolioValuation;
       startTransition(() => {
@@ -151,7 +176,9 @@ export function Dashboard() {
       setPortfolioName("");
       await refreshPortfolios(portfolio.id);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Failed to create portfolio.");
+      setErrorMessage(
+        error instanceof Error ? error.message : "Failed to create portfolio.",
+      );
     }
   }
 
@@ -170,7 +197,9 @@ export function Dashboard() {
       });
       await refreshSelectedPortfolio(selectedPortfolioId);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Failed to save holding.");
+      setErrorMessage(
+        error instanceof Error ? error.message : "Failed to save holding.",
+      );
     }
   }
 
@@ -179,10 +208,13 @@ export function Dashboard() {
       <section className="hero">
         <div>
           <p className="eyebrow">Portfolio Analytics MVP</p>
-          <h1>Event-driven portfolio monitoring with live valuation updates.</h1>
+          <h1>
+            Event-driven portfolio monitoring with live valuation updates.
+          </h1>
           <p className="lede">
-            FastAPI serves the portfolio APIs, Redis handles tick propagation and cache reads, and
-            the dashboard listens for websocket pushes as valuations change.
+            FastAPI serves the portfolio APIs, Redis handles tick propagation
+            and cache reads, and the dashboard listens for websocket pushes as
+            valuations change.
           </p>
         </div>
         <div className="hero-card">
@@ -218,7 +250,11 @@ export function Dashboard() {
             {portfolios.map((portfolio) => (
               <button
                 key={portfolio.id}
-                className={portfolio.id === selectedPortfolioId ? "portfolio-card active" : "portfolio-card"}
+                className={
+                  portfolio.id === selectedPortfolioId
+                    ? "portfolio-card active"
+                    : "portfolio-card"
+                }
                 onClick={() => setSelectedPortfolioId(portfolio.id)}
                 type="button"
               >
@@ -226,7 +262,9 @@ export function Dashboard() {
                 <span>{formatTimestamp(portfolio.created_at)}</span>
               </button>
             ))}
-            {portfolios.length === 0 ? <p className="empty">Create a portfolio to begin.</p> : null}
+            {portfolios.length === 0 ? (
+              <p className="empty">Create a portfolio to begin.</p>
+            ) : null}
           </div>
         </aside>
 
@@ -239,9 +277,12 @@ export function Dashboard() {
               </div>
               {portfolioDetail ? (
                 <>
-                  <strong className="metric-value">{portfolioDetail.name}</strong>
+                  <strong className="metric-value">
+                    {portfolioDetail.name}
+                  </strong>
                   <p className="metric-note">
-                    {portfolioDetail.holdings_count} holdings tracked in this portfolio.
+                    {portfolioDetail.holdings_count} holdings tracked in this
+                    portfolio.
                   </p>
                 </>
               ) : (
@@ -252,14 +293,19 @@ export function Dashboard() {
             <article className="panel metric-panel accent">
               <div className="panel-header">
                 <h2>Current valuation</h2>
-                <span>{valuation ? formatTimestamp(valuation.as_of) : "No data"}</span>
+                <span>
+                  {valuation ? formatTimestamp(valuation.as_of) : "No data"}
+                </span>
               </div>
               {valuation ? (
                 <>
-                  <strong className="metric-value">{formatMoney(valuation.total_market_value)}</strong>
+                  <strong className="metric-value">
+                    {formatMoney(valuation.total_market_value)}
+                  </strong>
                   <p className="metric-note">
-                    PnL {formatMoney(valuation.unrealized_pnl)} across {valuation.priced_holdings_count}/
-                    {valuation.holdings_count} priced holdings.
+                    PnL {formatMoney(valuation.unrealized_pnl)} across{" "}
+                    {valuation.priced_holdings_count}/{valuation.holdings_count}{" "}
+                    priced holdings.
                   </p>
                 </>
               ) : (
@@ -280,7 +326,9 @@ export function Dashboard() {
                   <span>Symbol</span>
                   <input
                     value={holdingSymbol}
-                    onChange={(event) => setHoldingSymbol(event.target.value.toUpperCase())}
+                    onChange={(event) =>
+                      setHoldingSymbol(event.target.value.toUpperCase())
+                    }
                     required
                   />
                 </label>
@@ -302,7 +350,9 @@ export function Dashboard() {
                     min="0.0001"
                     step="0.0001"
                     value={holdingCostBasis}
-                    onChange={(event) => setHoldingCostBasis(event.target.value)}
+                    onChange={(event) =>
+                      setHoldingCostBasis(event.target.value)
+                    }
                     required
                   />
                 </label>
@@ -320,7 +370,9 @@ export function Dashboard() {
                   </div>
                 ))}
                 {holdings.length === 0 ? (
-                  <p className="empty">No holdings yet. Add one to enable valuation updates.</p>
+                  <p className="empty">
+                    No holdings yet. Add one to enable valuation updates.
+                  </p>
                 ) : null}
               </div>
             </section>
@@ -339,7 +391,10 @@ export function Dashboard() {
                   </div>
                 ))}
                 {snapshots.length === 0 ? (
-                  <p className="empty">Snapshots will appear after price ticks revalue the portfolio.</p>
+                  <p className="empty">
+                    Snapshots will appear after price ticks revalue the
+                    portfolio.
+                  </p>
                 ) : null}
               </div>
             </section>

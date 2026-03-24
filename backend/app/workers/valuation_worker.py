@@ -62,15 +62,18 @@ async def run_worker() -> None:
     last_stream_id = "$"
 
     while True:
-        messages = await redis_client.xread({PRICE_TICK_STREAM: last_stream_id}, block=5000, count=10)
+        messages = await redis_client.xread(
+            {PRICE_TICK_STREAM: last_stream_id}, block=5000, count=10
+        )
         if not messages:
             continue
 
         for _, stream_messages in messages:
             for stream_id, payload in stream_messages:
                 normalized_payload = {
-                    key.decode() if isinstance(key, bytes) else key:
-                    value.decode() if isinstance(value, bytes) else value
+                    key.decode() if isinstance(key, bytes) else key: value.decode()
+                    if isinstance(value, bytes)
+                    else value
                     for key, value in payload.items()
                 }
                 async with AsyncSessionLocal() as session:

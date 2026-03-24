@@ -8,7 +8,8 @@ import {
   UpsertHoldingPayload,
 } from "./types";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -32,7 +33,9 @@ export function listPortfolios(): Promise<Portfolio[]> {
   return request<Portfolio[]>("/portfolios");
 }
 
-export function createPortfolio(payload: CreatePortfolioPayload): Promise<Portfolio> {
+export function createPortfolio(
+  payload: CreatePortfolioPayload,
+): Promise<Portfolio> {
   return request<Portfolio>("/portfolios", {
     method: "POST",
     body: JSON.stringify(payload),
@@ -61,6 +64,10 @@ export function getValuation(portfolioId: string): Promise<PortfolioValuation> {
   return request<PortfolioValuation>(`/portfolios/${portfolioId}/valuation`);
 }
 
-export function listSnapshots(portfolioId: string): Promise<PortfolioSnapshot[]> {
-  return request<PortfolioSnapshot[]>(`/portfolios/${portfolioId}/snapshots?limit=10&offset=0`);
+export function listSnapshots(
+  portfolioId: string,
+): Promise<PortfolioSnapshot[]> {
+  return request<PortfolioSnapshot[]>(
+    `/portfolios/${portfolioId}/snapshots?limit=10&offset=0`,
+  );
 }
