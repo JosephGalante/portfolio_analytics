@@ -25,6 +25,7 @@ import {
   PortfolioSnapshot,
   PortfolioValuation,
 } from "../lib/types";
+import { parsePortfolioValuationPayload } from "../lib/contracts";
 
 const WS_BASE_URL =
   process.env.NEXT_PUBLIC_WS_BASE_URL ?? "ws://localhost:8000";
@@ -145,7 +146,9 @@ export function Dashboard() {
       `${WS_BASE_URL}/ws/portfolios/${selectedPortfolioId}`,
     );
     websocket.onmessage = (event) => {
-      const nextValuation = JSON.parse(event.data) as PortfolioValuation;
+      const nextValuation = parsePortfolioValuationPayload(
+        JSON.parse(event.data),
+      );
       startTransition(() => {
         setValuation(nextValuation);
       });

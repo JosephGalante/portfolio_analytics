@@ -7,6 +7,12 @@ import {
   PortfolioValuation,
   UpsertHoldingPayload,
 } from "./types";
+import {
+  parseHoldingPayload,
+  parseHoldingsPayload,
+  parsePortfolioSnapshotsPayload,
+  parsePortfolioValuationPayload,
+} from "./contracts";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
@@ -29,11 +35,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function listPortfolios(): Promise<Portfolio[]> {
+export async function listPortfolios(): Promise<Portfolio[]> {
   return request<Portfolio[]>("/portfolios");
 }
 
-export function createPortfolio(
+export async function createPortfolio(
   payload: CreatePortfolioPayload,
 ): Promise<Portfolio> {
   return request<Portfolio>("/portfolios", {
@@ -41,33 +47,37 @@ export function createPortfolio(
     body: JSON.stringify(payload),
   });
 }
-
-export function getPortfolio(portfolioId: string): Promise<PortfolioDetail> {
+  
+export async function getPortfolio(portfolioId: string): Promise<PortfolioDetail> {
   return request<PortfolioDetail>(`/portfolios/${portfolioId}`);
 }
 
-export function listHoldings(portfolioId: string): Promise<Holding[]> {
-  return request<Holding[]>(`/portfolios/${portfolioId}/holdings`);
+export async function listHoldings(portfolioId: string): Promise<Holding[]> {
+  return request<unknown>(`/portfolios/${portfolioId}/holdings`).then(
+    parseHoldingsPayload,
+  );
 }
 
-export function upsertHolding(
+export async function upsertHolding(
   portfolioId: string,
   payload: UpsertHoldingPayload,
 ): Promise<Holding> {
-  return request<Holding>(`/portfolios/${portfolioId}/holdings`, {
+  return request<unknown>(`/portfolios/${portfolioId}/holdings`, {
     method: "POST",
     body: JSON.stringify(payload),
-  });
+  }).then(parseHoldingPayload);
 }
 
-export function getValuation(portfolioId: string): Promise<PortfolioValuation> {
-  return request<PortfolioValuation>(`/portfolios/${portfolioId}/valuation`);
+export async function getValuation(portfolioId: string): Promise<PortfolioValuation> {
+  return request<unknown>(`/portfolios/${portfolioId}/valuation`).then(
+    parsePortfolioValuationPayload,
+  );
 }
 
-export function listSnapshots(
+export async function listSnapshots(
   portfolioId: string,
 ): Promise<PortfolioSnapshot[]> {
-  return request<PortfolioSnapshot[]>(
+  return request<unknown>(
     `/portfolios/${portfolioId}/snapshots?limit=10&offset=0`,
-  );
+  ).then(parsePortfolioSnapshotsPayload);
 }
