@@ -32,7 +32,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error(text || `Request failed with status ${response.status}`);
   }
 
-  return response.json() as Promise<T>;
+  return response.json();
 }
 
 export async function listPortfolios(): Promise<Portfolio[]> {

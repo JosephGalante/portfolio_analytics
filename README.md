@@ -67,6 +67,8 @@ Notes:
 - The MVP assumes a single seeded demo user created at API startup.
 - Holdings are upserted by `(portfolio_id, symbol)`.
 - Valuation reads Redis first and falls back to recalculating from holdings plus latest cached symbol prices if the portfolio cache is cold.
+- Decimal-valued API fields are serialized as normalized strings such as `"200"` or `"300.5"`, not JSON numbers and not zero-padded strings like `"300.5000"`.
+- The frontend validates those decimal-string payloads at the API boundary before updating UI state.
 
 ## Local Setup
 
