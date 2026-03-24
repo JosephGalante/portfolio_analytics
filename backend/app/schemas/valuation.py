@@ -4,12 +4,10 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from app.schemas.base import ORMAppSchema
 
 
-class PortfolioValuationRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
+class PortfolioValuationRead(ORMAppSchema):
     portfolio_id: UUID
     total_market_value: Decimal
     total_cost_basis: Decimal

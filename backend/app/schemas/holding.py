@@ -4,7 +4,9 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, Field, field_validator
+
+from app.schemas.base import ORMAppSchema
 
 
 class HoldingUpsert(BaseModel):
@@ -18,9 +20,7 @@ class HoldingUpsert(BaseModel):
         return value.strip().upper()
 
 
-class HoldingRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
+class HoldingRead(ORMAppSchema):
     id: UUID
     portfolio_id: UUID
     symbol: str
