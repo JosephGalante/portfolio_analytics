@@ -1,10 +1,7 @@
-import {
-  Products,
-  createStytchClient,
-  type StytchLoginConfig,
-} from "@stytch/nextjs";
+import {createStytchClient} from "@stytch/nextjs";
 
-const DEFAULT_REDIRECT_URL = "http://localhost:3000";
+const DEFAULT_PASSWORD_RESET_REDIRECT_URL =
+  "http://localhost:3000/authenticate";
 const rawPublicToken =
   process.env.NEXT_PUBLIC_STYTCH_PUBLIC_TOKEN?.trim() ?? "";
 
@@ -13,8 +10,9 @@ export const stytchClient = isStytchConfigured
   ? createStytchClient(rawPublicToken)
   : null;
 
-function getRedirectURL(): string {
+export function getStytchPasswordResetRedirectUrl(): string {
   const configuredRedirectUrl =
+    process.env.NEXT_PUBLIC_STYTCH_PASSWORD_RESET_REDIRECT_URL?.trim() ??
     process.env.NEXT_PUBLIC_STYTCH_LOGIN_REDIRECT_URL?.trim();
 
   if (configuredRedirectUrl) {
@@ -22,22 +20,8 @@ function getRedirectURL(): string {
   }
 
   if (typeof window !== "undefined") {
-    return window.location.origin;
+    return `${window.location.origin}/authenticate`;
   }
 
-  return DEFAULT_REDIRECT_URL;
-}
-
-export function createStytchLoginConfig(): StytchLoginConfig {
-  const redirectURL = getRedirectURL();
-
-  return {
-    products: [Products.emailMagicLinks],
-    emailMagicLinksOptions: {
-      loginRedirectURL: redirectURL,
-      loginExpirationMinutes: 30,
-      signupRedirectURL: redirectURL,
-      signupExpirationMinutes: 30,
-    },
-  };
+  return DEFAULT_PASSWORD_RESET_REDIRECT_URL;
 }

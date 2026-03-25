@@ -52,7 +52,6 @@ docker-compose.yml
 ## Implemented API Surface
 
 REST:
-- `POST /auth/register`
 - `GET /auth/me`
 - `POST /portfolios`
 - `GET /portfolios`
@@ -66,7 +65,7 @@ Realtime:
 - `GET /ws/portfolios/{portfolio_id}`
 
 Notes:
-- The app uses persisted users plus HTTP Basic authentication for both REST requests and websocket ownership checks.
+- The app supports Stytch-backed password auth end-to-end. The frontend sends a Stytch session JWT as a Bearer token, the backend verifies that session with Stytch, and portfolios remain scoped to the mapped local user record.
 - Holdings are upserted by `(portfolio_id, symbol)`.
 - Valuation reads Redis first and falls back to recalculating from holdings plus latest cached symbol prices if the portfolio cache is cold.
 - Decimal-valued API fields are serialized as normalized strings such as `"200"` or `"300.5"`, not JSON numbers and not zero-padded strings like `"300.5000"`.
@@ -101,7 +100,7 @@ Useful URLs:
 ### Demo Flow
 
 1. Open the frontend.
-2. Register an account or sign in with existing HTTP Basic credentials.
+2. Request the password setup email, set your password, and sign in with email + password.
 3. Create a portfolio.
 4. Add holdings such as `AAPL` or `MSFT`.
 5. Watch valuation start reflecting cached symbol prices.
@@ -125,7 +124,7 @@ docker compose up --build
 
 ## Key Tradeoffs
 
-- HTTP Basic auth with client-side credential storage: pragmatic for an MVP, but a production app would move to session or token-based auth with stronger browser-side security.
+- Stytch for identity plus local ownership mapping: better than shipping homemade browser auth, but it still introduces an external auth dependency and provider-specific operational configuration.
 - Redis Stream + Pub/Sub instead of a heavier queue: enough to show event-driven design without introducing Kafka or Celery complexity.
 - Snapshot on every affected revaluation: simple and interview-friendly, but intentionally higher write volume than a sampled production design.
 - In-memory websocket connection manager: acceptable for one API instance; multi-instance scaling would need a shared realtime layer.

@@ -7,6 +7,9 @@ x-backend-env: &backend-env
   APP_CORS_ORIGINS: ${APP_CORS_ORIGINS:-["http://localhost:3000"]}
   DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://portfolio:portfolio@postgres:5432/portfolio_analytics}
   REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+  STYTCH_PROJECT_ID: ${STYTCH_PROJECT_ID:-}
+  STYTCH_SECRET: ${STYTCH_SECRET:-}
+  STYTCH_API_URL: ${STYTCH_API_URL:-https://test.stytch.com/v1}
   SEEDED_USER_EMAIL: ${SEEDED_USER_EMAIL:-demo@example.com}
   SEEDED_USER_NAME: ${SEEDED_USER_NAME:-Demo User}
   SIMULATOR_SYMBOLS: ${SIMULATOR_SYMBOLS:-AAPL,MSFT,NVDA,GOOGL,AMZN}

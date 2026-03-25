@@ -15,22 +15,21 @@ import {
   PortfolioDetail,
   PortfolioSnapshot,
   PortfolioValuation,
-  RegisterPayload,
   User,
   UpsertHoldingPayload,
 } from "./types";
-import {encodeBasicAuth, getStoredAuthSession} from "./auth";
+import {getStoredAuthorizationHeader} from "./auth";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
 async function request(path: string, init?: RequestInit): Promise<unknown> {
-  const authSession = getStoredAuthSession();
+  const authorization = getStoredAuthorizationHeader();
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      ...(authSession ? {Authorization: encodeBasicAuth(authSession)} : {}),
+      ...(authorization ? {Authorization: authorization} : {}),
       ...(init?.headers ?? {}),
     },
     cache: "no-store",
@@ -46,15 +45,6 @@ async function request(path: string, init?: RequestInit): Promise<unknown> {
 
 export async function getCurrentUser(): Promise<User> {
   return parseUserPayload(await request("/auth/me"));
-}
-
-export async function registerUser(payload: RegisterPayload): Promise<User> {
-  return parseUserPayload(
-    await request("/auth/register", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
-  );
 }
 
 export async function listPortfolios(): Promise<Portfolio[]> {

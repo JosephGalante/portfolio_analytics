@@ -1,23 +1,21 @@
-import base64
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, WebSocket, status
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db_session
 from app.models.user import User
 from app.services import auth_service
 
-basic_auth_scheme = HTTPBasic(auto_error=False)
+bearer_auth_scheme = HTTPBearer(auto_error=False)
 
 
 @dataclass(slots=True)
-class BasicAuthData:
-    username: str
-    password: str
+class BearerAuthData:
+    token: str
 
 
 async def get_db(session: AsyncSession = Depends(get_db_session)) -> AsyncIterator[AsyncSession]:
@@ -28,40 +26,35 @@ def _unauthorized(detail: str) -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail=detail,
-        headers={"WWW-Authenticate": "Basic"},
+        headers={"WWW-Authenticate": "Bearer"},
     )
 
 
-def _parse_basic_authorization(authorization: str | None) -> BasicAuthData | None:
-    if authorization is None or not authorization.startswith("Basic "):
+def _parse_bearer_authorization(authorization: str | None) -> BearerAuthData | None:
+    if authorization is None or not authorization.startswith("Bearer "):
         return None
 
-    try:
-        decoded = base64.b64decode(authorization[6:]).decode("utf-8")
-    except (ValueError, UnicodeDecodeError):
+    token = authorization[7:].strip()
+    if not token:
         return None
-
-    if ":" not in decoded:
-        return None
-
-    username, password = decoded.split(":", maxsplit=1)
-    return BasicAuthData(username=username, password=password)
+    return BearerAuthData(token=token)
 
 
 async def get_current_user(
     session: AsyncSession = Depends(get_db),
-    credentials: Annotated[HTTPBasicCredentials | None, Depends(basic_auth_scheme)] = None,
+    bearer_credentials: Annotated[
+        HTTPAuthorizationCredentials | None, Depends(bearer_auth_scheme)
+    ] = None,
 ) -> User:
-    if credentials is None:
+    if bearer_credentials is None:
         raise _unauthorized("Not authenticated.")
 
-    user = await auth_service.authenticate_user(
+    user = await auth_service.authenticate_stytch_session(
         session,
-        email=credentials.username,
-        password=credentials.password,
+        session_jwt=bearer_credentials.credentials,
     )
     if user is None:
-        raise _unauthorized("Invalid email or password.")
+        raise _unauthorized("Invalid session.")
     return user
 
 
@@ -69,20 +62,23 @@ async def get_current_user_from_websocket(
     websocket: WebSocket,
     session: AsyncSession,
 ) -> User | None:
-    credentials = _parse_basic_authorization(websocket.query_params.get("authorization"))
-    if credentials is None:
+    authorization = websocket.query_params.get("authorization")
+    bearer_credentials = _parse_bearer_authorization(authorization)
+    if bearer_credentials is not None:
+        user = await auth_service.authenticate_stytch_session(
+            session,
+            session_jwt=bearer_credentials.token,
+        )
+        if user is None:
+            await websocket.close(
+                code=status.WS_1008_POLICY_VIOLATION,
+                reason="Invalid session.",
+            )
+            return None
+        return user
+
+    if bearer_credentials is None:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Not authenticated.")
         return None
 
-    user = await auth_service.authenticate_user(
-        session,
-        email=credentials.username,
-        password=credentials.password,
-    )
-    if user is None:
-        await websocket.close(
-            code=status.WS_1008_POLICY_VIOLATION,
-            reason="Invalid email or password.",
-        )
-        return None
-    return user
+    return None

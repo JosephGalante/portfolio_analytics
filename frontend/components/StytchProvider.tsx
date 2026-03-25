@@ -15,7 +15,7 @@ export default function StytchProvider({children}: StytchProviderProps) {
   }
 
   return (
-    <StytchContextProvider assumeHydrated stytch={stytchClient}>
+    <StytchContextProvider assumeHydrated={false} stytch={stytchClient}>
       {children}
     </StytchContextProvider>
   );

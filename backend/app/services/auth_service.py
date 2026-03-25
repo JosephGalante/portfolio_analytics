@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
+from app.services import stytch_service
 
 _HASH_NAME = "sha256"
 _ITERATIONS = 600_000
@@ -51,43 +52,65 @@ def verify_password(password: str, password_hash: str) -> bool:
     return hmac.compare_digest(actual, expected)
 
 
-async def register_user(
+async def authenticate_stytch_session(
     session: AsyncSession,
     *,
-    email: str,
-    name: str,
-    password: str,
-) -> User:
-    existing = await session.execute(select(User).where(User.email == email.lower()))
-    if existing.scalar_one_or_none() is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A user with that email already exists.",
-        )
-
-    user = User(
-        email=email.lower(),
-        name=name.strip(),
-        password_hash=hash_password(password),
-    )
-    session.add(user)
-    await session.commit()
-    await session.refresh(user)
-    return user
-
-
-async def authenticate_user(
-    session: AsyncSession,
-    *,
-    email: str,
-    password: str,
+    session_jwt: str,
 ) -> User | None:
-    result = await session.execute(select(User).where(User.email == email.lower()))
-    user = result.scalar_one_or_none()
-    if user is None or user.password_hash is None:
+    identity = await stytch_service.authenticate_session_jwt(session_jwt)
+    if identity is None:
         return None
 
-    if not verify_password(password, user.password_hash):
-        return None
+    existing_by_stytch = await session.execute(
+        select(User).where(User.stytch_user_id == identity.user_id)
+    )
+    user = existing_by_stytch.scalar_one_or_none()
+
+    if user is None:
+        existing_by_email = await session.execute(select(User).where(User.email == identity.email))
+        user = existing_by_email.scalar_one_or_none()
+
+        if user is not None and user.stytch_user_id not in (None, identity.user_id):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="That email is already linked to another Stytch account.",
+            )
+
+    user_was_created = False
+    user_was_updated = False
+
+    if user is None:
+        user = User(
+            email=identity.email,
+            name=identity.name,
+            password_hash=None,
+            stytch_user_id=identity.user_id,
+        )
+        session.add(user)
+        user_was_created = True
+    else:
+        if user.stytch_user_id != identity.user_id:
+            user.stytch_user_id = identity.user_id
+            user_was_updated = True
+
+        if user.email != identity.email:
+            conflicting_user = await session.execute(
+                select(User).where(User.email == identity.email, User.id != user.id)
+            )
+            if conflicting_user.scalar_one_or_none() is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="That Stytch email is already linked to another account.",
+                )
+            user.email = identity.email
+            user_was_updated = True
+
+        if user.name != identity.name and identity.name:
+            user.name = identity.name
+            user_was_updated = True
+
+    if user_was_created or user_was_updated:
+        await session.commit()
+        await session.refresh(user)
 
     return user

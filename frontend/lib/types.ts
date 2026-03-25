@@ -11,12 +11,6 @@ export type CreatePortfolioPayload = {
   name: string;
 };
 
-export type RegisterPayload = {
-  email: string;
-  name: string;
-  password: string;
-};
-
 export type UpsertHoldingPayload = {
   symbol: string;
   quantity: string;

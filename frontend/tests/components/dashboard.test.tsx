@@ -3,7 +3,6 @@ import {createElement} from "react";
 import {render, screen} from "@testing-library/react";
 import {beforeEach, describe, expect, it, vi} from "vitest";
 
-import {storeAuthSession} from "@/lib/auth";
 import {createAppQueryClient} from "@/lib/query-client";
 
 const apiMocks = vi.hoisted(() => ({
@@ -14,7 +13,6 @@ const apiMocks = vi.hoisted(() => ({
   listHoldings: vi.fn(),
   listPortfolios: vi.fn(),
   listSnapshots: vi.fn(),
-  registerUser: vi.fn(),
   upsertHolding: vi.fn(),
 }));
 
@@ -23,6 +21,27 @@ const navigationMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/api", () => apiMocks);
+vi.mock("@/lib/stytch", () => ({
+  isStytchConfigured: true,
+  stytchClient: {
+    session: {
+      getTokens: () => ({
+        session_jwt: "test-session-jwt",
+      }),
+    },
+  },
+}));
+vi.mock("@stytch/nextjs", () => ({
+  useStytch: () => ({
+    session: {
+      revoke: vi.fn().mockResolvedValue(undefined),
+    },
+  }),
+  useStytchSession: () => ({
+    isInitialized: true,
+    session: {session_id: "session-1"},
+  }),
+}));
 vi.mock("next/navigation", () => ({
   useRouter: () => navigationMocks,
 }));
@@ -57,11 +76,6 @@ describe("Dashboard", () => {
     Object.values(apiMocks).forEach((mock) => mock.mockReset());
     MockWebSocket.instances = [];
     vi.stubGlobal("WebSocket", MockWebSocket);
-    window.localStorage.clear();
-    storeAuthSession({
-      email: "tests@example.com",
-      password: "password123",
-    });
 
     apiMocks.createPortfolio.mockResolvedValue(basePortfolio);
     apiMocks.getCurrentUser.mockResolvedValue({

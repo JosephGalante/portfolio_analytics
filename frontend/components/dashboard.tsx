@@ -5,6 +5,8 @@ import {useRouter} from "next/navigation";
 import {useEffect, useMemo, useState} from "react";
 import {useForm} from "react-hook-form";
 
+import {useStytch, useStytchSession} from "@stytch/nextjs";
+
 import {
   createPortfolio,
   getCurrentUser,
@@ -15,13 +17,9 @@ import {
   listSnapshots,
   upsertHolding,
 } from "@/lib/api";
-import {
-  AuthSession,
-  clearStoredAuthSession,
-  encodeBasicAuth,
-  getStoredAuthSession,
-} from "@/lib/auth";
+import {getStoredAuthorizationHeader} from "@/lib/auth";
 import {parsePortfolioValuationPayload} from "@/lib/contracts";
+import {isStytchConfigured} from "@/lib/stytch";
 import {Portfolio} from "@/lib/types";
 
 const WS_BASE_URL =
@@ -75,8 +73,12 @@ function toErrorMessage(error: unknown, fallback: string): string {
 export default function Dashboard() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [authSession, setAuthSession] = useState<AuthSession | null>(null);
-  const [authChecked, setAuthChecked] = useState(false);
+  const stytch = useStytch();
+  const {isInitialized: isStytchInitialized, session: stytchSession} =
+    useStytchSession();
+  const hasStytchSession =
+    isStytchConfigured && isStytchInitialized && stytchSession !== null;
+  const isReady = isStytchConfigured && isStytchInitialized;
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(
     null,
   );
@@ -92,6 +94,7 @@ export default function Dashboard() {
   const [websocketStatus, setWebsocketStatus] = useState<
     "idle" | "connecting" | "live" | "error"
   >("idle");
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const {
     formState: {
       isSubmitting: isCreatePortfolioSubmitting,
@@ -119,43 +122,31 @@ export default function Dashboard() {
     mode: "onChange",
   });
 
-  useEffect(() => {
-    const storedAuthSession = getStoredAuthSession();
-    if (storedAuthSession !== null) {
-      setAuthSession(storedAuthSession);
-    }
-
-    setAuthChecked(true);
-  }, []);
-
   const currentUserQuery = useQuery({
     queryKey: portfolioQueryKeys.me,
     queryFn: getCurrentUser,
-    enabled: authChecked && authSession !== null,
+    enabled: isReady && hasStytchSession,
     retry: false,
   });
 
   useEffect(() => {
     if (
-      authSession === null ||
       currentUserQuery.error === null ||
       currentUserQuery.error === undefined
     ) {
       return;
     }
 
-    clearStoredAuthSession();
-    setAuthSession(null);
     setSelectedPortfolioId(null);
     queryClient.removeQueries({queryKey: portfolioQueryKeys.me});
     router.replace("/auth");
-  }, [authSession, currentUserQuery.error, queryClient, router]);
+  }, [currentUserQuery.error, queryClient, router]);
 
   useEffect(() => {
-    if (authChecked && authSession === null) {
+    if (isReady && !hasStytchSession) {
       router.replace("/auth");
     }
-  }, [authChecked, authSession, router]);
+  }, [isReady, hasStytchSession, router]);
 
   const portfoliosQuery = useQuery({
     queryKey: portfolioQueryKeys.all,
@@ -326,15 +317,22 @@ export default function Dashboard() {
   });
 
   useEffect(() => {
-    if (selectedPortfolioId === null || authSession === null) {
+    if (selectedPortfolioId === null || currentUserQuery.data === undefined) {
       setWebsocketStatus("idle");
+      return;
+    }
+
+    const authorization = getStoredAuthorizationHeader();
+    if (authorization === null) {
+      setWebsocketStatus("error");
+      setRealtimeErrorMessage("No active session available for live updates.");
       return;
     }
 
     setWebsocketStatus("connecting");
     const websocket = new WebSocket(
       `${WS_BASE_URL}/ws/portfolios/${selectedPortfolioId}?authorization=${encodeURIComponent(
-        encodeBasicAuth(authSession),
+        authorization,
       )}`,
     );
 
@@ -372,15 +370,25 @@ export default function Dashboard() {
     return () => {
       websocket.close();
     };
-  }, [authSession, queryClient, selectedPortfolioId]);
+  }, [currentUserQuery.data, queryClient, selectedPortfolioId]);
 
-  function handleSignOut() {
-    clearStoredAuthSession();
-    setAuthSession(null);
-    setSelectedPortfolioId(null);
+  async function handleSignOut() {
     setActionErrorMessage(null);
     setActionSuccessMessage(null);
     setRealtimeErrorMessage(null);
+
+    if (hasStytchSession) {
+      setIsSigningOut(true);
+      try {
+        await stytch.session.revoke({forceClear: true});
+      } catch (error) {
+        setActionErrorMessage(toErrorMessage(error, "Failed to sign out."));
+      } finally {
+        setIsSigningOut(false);
+      }
+    }
+
+    setSelectedPortfolioId(null);
     queryClient.clear();
     router.replace("/auth");
   }
@@ -426,7 +434,47 @@ export default function Dashboard() {
     ]);
   }
 
-  if (!authChecked || authSession === null || currentUserQuery.isError) {
+  if (!isStytchConfigured) {
+    return (
+      <main className="shell auth-shell">
+        <section className="panel auth-panel">
+          <p className="eyebrow">Portfolio Analytics MVP</p>
+          <h1>Stytch is required</h1>
+          <p className="lede">Configure Stytch before loading the dashboard.</p>
+        </section>
+      </main>
+    );
+  }
+
+  if (!isReady) {
+    return (
+      <main className="shell auth-shell">
+        <section className="panel auth-panel">
+          <p className="eyebrow">Portfolio Analytics MVP</p>
+          <h1>Checking your session...</h1>
+          <p className="lede">
+            Verifying your access before loading the dashboard.
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  if (!hasStytchSession) {
+    return (
+      <main className="shell auth-shell">
+        <section className="panel auth-panel">
+          <p className="eyebrow">Portfolio Analytics MVP</p>
+          <h1>Redirecting to sign in...</h1>
+          <p className="lede">
+            You need an authenticated session before the dashboard can load.
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  if (currentUserQuery.isError) {
     return (
       <main className="shell auth-shell">
         <section className="panel auth-panel">
@@ -533,10 +581,11 @@ export default function Dashboard() {
           </div>
           <button
             className="ghost-button auth-signout"
-            onClick={handleSignOut}
+            disabled={isSigningOut}
+            onClick={() => void handleSignOut()}
             type="button"
           >
-            Sign out
+            {isSigningOut ? "Signing out..." : "Sign out"}
           </button>
         </div>
       </section>

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 import sys
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -116,12 +115,9 @@ async def unauthenticated_client(
         yield async_client
 
     app.dependency_overrides.clear()
-
-
 @pytest.fixture
-def basic_auth_header():
-    def _build(email: str, password: str) -> dict[str, str]:
-        token = base64.b64encode(f"{email}:{password}".encode()).decode("utf-8")
-        return {"Authorization": f"Basic {token}"}
+def bearer_auth_header():
+    def _build(token: str) -> dict[str, str]:
+        return {"Authorization": f"Bearer {token}"}
 
     return _build

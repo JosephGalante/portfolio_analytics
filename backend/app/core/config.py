@@ -18,6 +18,9 @@ class Settings(BaseSettings):
         "postgresql+asyncpg://portfolio:portfolio@localhost:5432/portfolio_analytics"
     )
     redis_url: str = "redis://localhost:6379/0"
+    stytch_project_id: str = ""
+    stytch_secret: str = ""
+    stytch_api_url: str = "https://test.stytch.com/v1"
     simulator_symbols: str = "AAPL,MSFT,NVDA,GOOGL,AMZN"
     simulator_tick_interval_ms: int = 1500
     simulator_initial_price_aapl: str = "185.00"
