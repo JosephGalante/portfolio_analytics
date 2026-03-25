@@ -18,9 +18,17 @@ const apiMocks = vi.hoisted(() => ({
   upsertHolding: vi.fn(),
 }));
 
+const navigationMocks = vi.hoisted(() => ({
+  replace: vi.fn(),
+}));
+
 vi.mock("@/lib/api", () => apiMocks);
+vi.mock("next/navigation", () => ({
+  useRouter: () => navigationMocks,
+}));
 
 import Dashboard from "@/components/Dashboard";
+import {Portfolio} from "@/lib/contracts";
 
 class MockWebSocket {
   static instances: MockWebSocket[] = [];
@@ -37,7 +45,7 @@ class MockWebSocket {
   }
 }
 
-const basePortfolio = {
+const basePortfolio: Portfolio = {
   id: "portfolio-1",
   name: "Growth",
   created_at: "2026-03-24T12:00:00Z",

@@ -5,7 +5,8 @@ import {
 } from "@stytch/nextjs";
 
 const DEFAULT_REDIRECT_URL = "http://localhost:3000";
-const rawPublicToken = process.env.NEXT_PUBLIC_STYTCH_PUBLIC_TOKEN?.trim() ?? "";
+const rawPublicToken =
+  process.env.NEXT_PUBLIC_STYTCH_PUBLIC_TOKEN?.trim() ?? "";
 
 export const isStytchConfigured = rawPublicToken.length > 0;
 export const stytchClient = isStytchConfigured

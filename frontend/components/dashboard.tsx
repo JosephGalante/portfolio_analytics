@@ -1,7 +1,9 @@
 "use client";
 
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
-import {FormEvent, useEffect, useMemo, useState} from "react";
+import {useRouter} from "next/navigation";
+import {useEffect, useMemo, useState} from "react";
+import {useForm} from "react-hook-form";
 
 import {
   createPortfolio,
@@ -11,7 +13,6 @@ import {
   listHoldings,
   listPortfolios,
   listSnapshots,
-  registerUser,
   upsertHolding,
 } from "@/lib/api";
 import {
@@ -19,11 +20,8 @@ import {
   clearStoredAuthSession,
   encodeBasicAuth,
   getStoredAuthSession,
-  storeAuthSession,
 } from "@/lib/auth";
-import StytchAuthPanel from "@/components/StytchAuthPanel";
 import {parsePortfolioValuationPayload} from "@/lib/contracts";
-import {isStytchConfigured} from "@/lib/stytch";
 import {Portfolio} from "@/lib/types";
 
 const WS_BASE_URL =
@@ -41,6 +39,16 @@ const portfolioQueryKeys = {
     ["portfolios", portfolioId, "valuation"] as const,
   snapshots: (portfolioId: string) =>
     ["portfolios", portfolioId, "snapshots"] as const,
+};
+
+type CreatePortfolioFormValues = {
+  portfolioName: string;
+};
+
+type HoldingFormValues = {
+  averageCostBasis: string;
+  quantity: string;
+  symbol: string;
 };
 
 function formatMoney(value: string): string {
@@ -65,23 +73,13 @@ function toErrorMessage(error: unknown, fallback: string): string {
 }
 
 export default function Dashboard() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
-  const [authMode, setAuthMode] = useState<"signin" | "register">("signin");
-  const [authEmail, setAuthEmail] = useState("");
-  const [authPassword, setAuthPassword] = useState("");
-  const [authName, setAuthName] = useState("");
-  const [authErrorMessage, setAuthErrorMessage] = useState<string | null>(null);
-  const [authSuccessMessage, setAuthSuccessMessage] = useState<string | null>(
-    null,
-  );
+  const [authChecked, setAuthChecked] = useState(false);
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(
     null,
   );
-  const [portfolioName, setPortfolioName] = useState("");
-  const [holdingSymbol, setHoldingSymbol] = useState("AAPL");
-  const [holdingQuantity, setHoldingQuantity] = useState("10");
-  const [holdingCostBasis, setHoldingCostBasis] = useState("180.00");
   const [actionErrorMessage, setActionErrorMessage] = useState<string | null>(
     null,
   );
@@ -94,20 +92,46 @@ export default function Dashboard() {
   const [websocketStatus, setWebsocketStatus] = useState<
     "idle" | "connecting" | "live" | "error"
   >("idle");
+  const {
+    formState: {
+      isSubmitting: isCreatePortfolioSubmitting,
+      isValid: isCreatePortfolioValid,
+    },
+    handleSubmit: handleCreatePortfolioSubmit,
+    register: registerCreatePortfolio,
+    reset: resetCreatePortfolioForm,
+  } = useForm<CreatePortfolioFormValues>({
+    defaultValues: {
+      portfolioName: "",
+    },
+    mode: "onChange",
+  });
+  const {
+    formState: {isSubmitting: isHoldingSubmitting, isValid: isHoldingValid},
+    handleSubmit: handleHoldingSubmit,
+    register: registerHolding,
+  } = useForm<HoldingFormValues>({
+    defaultValues: {
+      averageCostBasis: "180.00",
+      quantity: "10",
+      symbol: "AAPL",
+    },
+    mode: "onChange",
+  });
 
   useEffect(() => {
     const storedAuthSession = getStoredAuthSession();
     if (storedAuthSession !== null) {
       setAuthSession(storedAuthSession);
-      setAuthEmail(storedAuthSession.email);
-      setAuthPassword(storedAuthSession.password);
     }
+
+    setAuthChecked(true);
   }, []);
 
   const currentUserQuery = useQuery({
     queryKey: portfolioQueryKeys.me,
     queryFn: getCurrentUser,
-    enabled: authSession !== null,
+    enabled: authChecked && authSession !== null,
     retry: false,
   });
 
@@ -123,11 +147,15 @@ export default function Dashboard() {
     clearStoredAuthSession();
     setAuthSession(null);
     setSelectedPortfolioId(null);
-    setAuthErrorMessage(
-      toErrorMessage(currentUserQuery.error, "Invalid email or password."),
-    );
     queryClient.removeQueries({queryKey: portfolioQueryKeys.me});
-  }, [authSession, currentUserQuery.error, queryClient]);
+    router.replace("/auth");
+  }, [authSession, currentUserQuery.error, queryClient, router]);
+
+  useEffect(() => {
+    if (authChecked && authSession === null) {
+      router.replace("/auth");
+    }
+  }, [authChecked, authSession, router]);
 
   const portfoliosQuery = useQuery({
     queryKey: portfolioQueryKeys.all,
@@ -161,19 +189,18 @@ export default function Dashboard() {
   }, [selectedPortfolioId]);
 
   useEffect(() => {
-    if (actionSuccessMessage === null && authSuccessMessage === null) {
+    if (actionSuccessMessage === null) {
       return;
     }
 
     const timeout = window.setTimeout(() => {
       setActionSuccessMessage(null);
-      setAuthSuccessMessage(null);
     }, 3500);
 
     return () => {
       window.clearTimeout(timeout);
     };
-  }, [actionSuccessMessage, authSuccessMessage]);
+  }, [actionSuccessMessage]);
 
   const selectedPortfolio = useMemo(
     () =>
@@ -222,30 +249,6 @@ export default function Dashboard() {
       selectedPortfolioId !== null && currentUserQuery.data !== undefined,
   });
 
-  const registerMutation = useMutation({
-    mutationFn: registerUser,
-    onMutate: () => {
-      setAuthErrorMessage(null);
-      setAuthSuccessMessage(null);
-    },
-    onSuccess: (_, variables) => {
-      const nextAuthSession = {
-        email: variables.email,
-        password: variables.password,
-      };
-      storeAuthSession(nextAuthSession);
-      setAuthSession(nextAuthSession);
-      setAuthEmail(variables.email);
-      setAuthPassword(variables.password);
-      setAuthName("");
-      setAuthMode("signin");
-      setAuthSuccessMessage(`Registered ${variables.email}.`);
-    },
-    onError: (error) => {
-      setAuthErrorMessage(toErrorMessage(error, "Failed to register user."));
-    },
-  });
-
   const createPortfolioMutation = useMutation({
     mutationFn: createPortfolio,
     onMutate: () => {
@@ -253,7 +256,7 @@ export default function Dashboard() {
       setActionSuccessMessage(null);
     },
     onSuccess: async (portfolio) => {
-      setPortfolioName("");
+      resetCreatePortfolioForm();
       setSelectedPortfolioId(portfolio.id);
       setActionSuccessMessage(`Created portfolio "${portfolio.name}".`);
       queryClient.setQueryData<Portfolio[]>(
@@ -371,59 +374,31 @@ export default function Dashboard() {
     };
   }, [authSession, queryClient, selectedPortfolioId]);
 
-  async function handleSignIn(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setAuthErrorMessage(null);
-    setAuthSuccessMessage(null);
-    const nextAuthSession = {
-      email: authEmail.trim().toLowerCase(),
-      password: authPassword,
-    };
-    storeAuthSession(nextAuthSession);
-    setAuthSession(nextAuthSession);
-    queryClient.removeQueries({queryKey: portfolioQueryKeys.me});
-  }
-
-  async function handleRegister(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    await registerMutation.mutateAsync({
-      email: authEmail.trim().toLowerCase(),
-      name: authName.trim(),
-      password: authPassword,
-    });
-  }
-
   function handleSignOut() {
     clearStoredAuthSession();
     setAuthSession(null);
     setSelectedPortfolioId(null);
-    setAuthPassword("");
-    setAuthName("");
-    setAuthErrorMessage(null);
-    setAuthSuccessMessage(null);
     setActionErrorMessage(null);
     setActionSuccessMessage(null);
     setRealtimeErrorMessage(null);
     queryClient.clear();
+    router.replace("/auth");
   }
 
-  async function handleCreatePortfolio(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    await createPortfolioMutation.mutateAsync({name: portfolioName});
+  async function handleCreatePortfolio(values: CreatePortfolioFormValues) {
+    await createPortfolioMutation.mutateAsync({name: values.portfolioName});
   }
 
-  async function handleUpsertHolding(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
+  async function handleUpsertHolding(values: HoldingFormValues) {
     if (selectedPortfolioId === null) {
       return;
     }
 
     await upsertHoldingMutation.mutateAsync({
       portfolioId: selectedPortfolioId,
-      symbol: holdingSymbol,
-      quantity: holdingQuantity,
-      averageCostBasis: holdingCostBasis,
+      symbol: values.symbol.toUpperCase(),
+      quantity: values.quantity,
+      averageCostBasis: values.averageCostBasis,
     });
   }
 
@@ -451,111 +426,15 @@ export default function Dashboard() {
     ]);
   }
 
-  if (authSession === null || currentUserQuery.isError) {
+  if (!authChecked || authSession === null || currentUserQuery.isError) {
     return (
       <main className="shell auth-shell">
-        <section className="auth-grid">
-          <div>
-            <p className="eyebrow">Portfolio Analytics MVP</p>
-            <h1>
-              Track portfolios in real time with owned portfolios and live
-              private streams.
-            </h1>
-            <p className="lede">
-              {isStytchConfigured
-                ? "This first Stytch step only replaces the frontend sign-in flow with email magic links. The backend ownership checks are still on the legacy local auth path until the next migration."
-                : "Sign in with HTTP Basic credentials to access only your own portfolios, holdings, valuations, and websocket updates."}
-            </p>
-          </div>
-
-          {isStytchConfigured ? (
-            <StytchAuthPanel />
-          ) : (
-            <section className="panel auth-panel">
-              <div className="panel-header">
-                <h2>{authMode === "signin" ? "Sign in" : "Register"}</h2>
-                <span>
-                  {authMode === "signin" ? "Existing user" : "New owner"}
-                </span>
-              </div>
-
-              {authErrorMessage ? (
-                <p className="error-banner">{authErrorMessage}</p>
-              ) : null}
-              {authSuccessMessage ? (
-                <p className="success-banner">{authSuccessMessage}</p>
-              ) : null}
-
-              <form
-                className="stack-form"
-                onSubmit={authMode === "signin" ? handleSignIn : handleRegister}
-              >
-                <label>
-                  <span>Email</span>
-                  <input
-                    autoComplete="username"
-                    onChange={(event) => setAuthEmail(event.target.value)}
-                    required
-                    type="email"
-                    value={authEmail}
-                  />
-                </label>
-                {authMode === "register" ? (
-                  <label>
-                    <span>Name</span>
-                    <input
-                      onChange={(event) => setAuthName(event.target.value)}
-                      required
-                      value={authName}
-                    />
-                  </label>
-                ) : null}
-                <label>
-                  <span>Password</span>
-                  <input
-                    autoComplete={
-                      authMode === "signin"
-                        ? "current-password"
-                        : "new-password"
-                    }
-                    minLength={8}
-                    onChange={(event) => setAuthPassword(event.target.value)}
-                    required
-                    type="password"
-                    value={authPassword}
-                  />
-                </label>
-                <button
-                  disabled={
-                    registerMutation.isPending || currentUserQuery.isFetching
-                  }
-                  type="submit"
-                >
-                  {authMode === "signin"
-                    ? currentUserQuery.isFetching
-                      ? "Signing in..."
-                      : "Sign in"
-                    : registerMutation.isPending
-                      ? "Registering..."
-                      : "Register"}
-                </button>
-              </form>
-
-              <button
-                className="ghost-button"
-                onClick={() => {
-                  setAuthErrorMessage(null);
-                  setAuthSuccessMessage(null);
-                  setAuthMode(authMode === "signin" ? "register" : "signin");
-                }}
-                type="button"
-              >
-                {authMode === "signin"
-                  ? "Need an account? Register"
-                  : "Already have an account? Sign in"}
-              </button>
-            </section>
-          )}
+        <section className="panel auth-panel">
+          <p className="eyebrow">Portfolio Analytics MVP</p>
+          <h1>Redirecting to sign in...</h1>
+          <p className="lede">
+            You need an authenticated session before the dashboard can load.
+          </p>
         </section>
       </main>
     );
@@ -678,18 +557,35 @@ export default function Dashboard() {
             <span>{portfolios.length}</span>
           </div>
 
-          <form className="stack-form" onSubmit={handleCreatePortfolio}>
+          <form
+            className="stack-form"
+            onSubmit={handleCreatePortfolioSubmit(handleCreatePortfolio)}
+          >
             <label>
               <span>New portfolio</span>
               <input
-                value={portfolioName}
-                onChange={(event) => setPortfolioName(event.target.value)}
+                disabled={
+                  createPortfolioMutation.isPending ||
+                  isCreatePortfolioSubmitting
+                }
+                {...registerCreatePortfolio("portfolioName", {
+                  required: true,
+                  validate: (value) =>
+                    value.trim().length > 0 || "Portfolio name is required.",
+                })}
                 placeholder="Long-term growth"
                 required
               />
             </label>
-            <button type="submit" disabled={createPortfolioMutation.isPending}>
-              {createPortfolioMutation.isPending
+            <button
+              disabled={
+                createPortfolioMutation.isPending ||
+                isCreatePortfolioSubmitting ||
+                !isCreatePortfolioValid
+              }
+              type="submit"
+            >
+              {createPortfolioMutation.isPending || isCreatePortfolioSubmitting
                 ? "Creating..."
                 : "Create portfolio"}
             </button>
@@ -789,43 +685,78 @@ export default function Dashboard() {
                 <span>{holdings.length}</span>
               </div>
 
-              <form className="holding-form" onSubmit={handleUpsertHolding}>
+              <form
+                className="holding-form"
+                onSubmit={handleHoldingSubmit(handleUpsertHolding)}
+              >
                 <label>
                   <span>Symbol</span>
                   <input
-                    value={holdingSymbol}
-                    onChange={(event) =>
-                      setHoldingSymbol(event.target.value.toUpperCase())
+                    disabled={
+                      selectedPortfolioId === null ||
+                      upsertHoldingMutation.isPending ||
+                      isHoldingSubmitting
                     }
+                    {...registerHolding("symbol", {
+                      onChange: (event) => {
+                        event.target.value = event.target.value.toUpperCase();
+                      },
+                      required: true,
+                      validate: (value) =>
+                        value.trim().length > 0 || "Symbol is required.",
+                    })}
                     required
                   />
                 </label>
                 <label>
                   <span>Quantity</span>
                   <input
+                    disabled={
+                      selectedPortfolioId === null ||
+                      upsertHoldingMutation.isPending ||
+                      isHoldingSubmitting
+                    }
+                    {...registerHolding("quantity", {
+                      required: true,
+                      validate: (value) =>
+                        Number(value) > 0 || "Quantity must be greater than 0.",
+                    })}
                     type="number"
                     min="0.000001"
                     step="0.000001"
-                    value={holdingQuantity}
-                    onChange={(event) => setHoldingQuantity(event.target.value)}
                     required
                   />
                 </label>
                 <label>
                   <span>Average cost basis</span>
                   <input
+                    disabled={
+                      selectedPortfolioId === null ||
+                      upsertHoldingMutation.isPending ||
+                      isHoldingSubmitting
+                    }
+                    {...registerHolding("averageCostBasis", {
+                      required: true,
+                      validate: (value) =>
+                        Number(value) > 0 ||
+                        "Average cost basis must be greater than 0.",
+                    })}
                     type="number"
                     min="0.0001"
                     step="0.0001"
-                    value={holdingCostBasis}
-                    onChange={(event) =>
-                      setHoldingCostBasis(event.target.value)
-                    }
                     required
                   />
                 </label>
-                <button type="submit" disabled={selectedPortfolioId === null}>
-                  {upsertHoldingMutation.isPending
+                <button
+                  disabled={
+                    selectedPortfolioId === null ||
+                    upsertHoldingMutation.isPending ||
+                    isHoldingSubmitting ||
+                    !isHoldingValid
+                  }
+                  type="submit"
+                >
+                  {upsertHoldingMutation.isPending || isHoldingSubmitting
                     ? "Saving..."
                     : "Save holding"}
                 </button>

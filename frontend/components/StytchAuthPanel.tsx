@@ -4,10 +4,7 @@ import {StytchLogin, useStytch, useStytchSession} from "@stytch/nextjs";
 import {useMemo, useState} from "react";
 
 import {createStytchLoginConfig} from "@/lib/stytch";
-
-function toErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
-}
+import {toErrorMessage} from "@/lib/utils";
 
 export default function StytchAuthPanel() {
   const stytch = useStytch();

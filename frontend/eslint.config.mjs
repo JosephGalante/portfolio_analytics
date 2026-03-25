@@ -3,6 +3,7 @@ import {fileURLToPath} from "node:url";
 
 import js from "@eslint/js";
 import {FlatCompat} from "@eslint/eslintrc";
+import {defineConfig} from "eslint/config";
 import prettierConfig from "eslint-config-prettier";
 import tseslint from "typescript-eslint";
 
@@ -13,7 +14,7 @@ const compat = new FlatCompat({
   baseDirectory: __dirname,
 });
 
-export default tseslint.defineConfig(
+export default defineConfig(
   {
     ignores: [".next/**", "next-env.d.ts", "node_modules/**"],
   },
