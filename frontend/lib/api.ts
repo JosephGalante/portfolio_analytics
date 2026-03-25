@@ -1,4 +1,13 @@
 import {
+  parseHoldingPayload,
+  parseHoldingsPayload,
+  parsePortfolioDetailPayload,
+  parsePortfolioPayload,
+  parsePortfoliosPayload,
+  parsePortfolioSnapshotsPayload,
+  parsePortfolioValuationPayload,
+} from "./contracts";
+import {
   CreatePortfolioPayload,
   Holding,
   Portfolio,
@@ -7,17 +16,11 @@ import {
   PortfolioValuation,
   UpsertHoldingPayload,
 } from "./types";
-import {
-  parseHoldingPayload,
-  parseHoldingsPayload,
-  parsePortfolioSnapshotsPayload,
-  parsePortfolioValuationPayload,
-} from "./contracts";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request(path: string, init?: RequestInit): Promise<unknown> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: {
@@ -36,25 +39,31 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export async function listPortfolios(): Promise<Portfolio[]> {
-  return request<Portfolio[]>("/portfolios");
+  return parsePortfoliosPayload(await request("/portfolios"));
 }
 
 export async function createPortfolio(
   payload: CreatePortfolioPayload,
 ): Promise<Portfolio> {
-  return request<Portfolio>("/portfolios", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  return parsePortfolioPayload(
+    await request("/portfolios", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  );
 }
-  
-export async function getPortfolio(portfolioId: string): Promise<PortfolioDetail> {
-  return request<PortfolioDetail>(`/portfolios/${portfolioId}`);
+
+export async function getPortfolio(
+  portfolioId: string,
+): Promise<PortfolioDetail> {
+  return parsePortfolioDetailPayload(
+    await request(`/portfolios/${portfolioId}`),
+  );
 }
 
 export async function listHoldings(portfolioId: string): Promise<Holding[]> {
-  return request<unknown>(`/portfolios/${portfolioId}/holdings`).then(
-    parseHoldingsPayload,
+  return parseHoldingsPayload(
+    await request(`/portfolios/${portfolioId}/holdings`),
   );
 }
 
@@ -62,22 +71,26 @@ export async function upsertHolding(
   portfolioId: string,
   payload: UpsertHoldingPayload,
 ): Promise<Holding> {
-  return request<unknown>(`/portfolios/${portfolioId}/holdings`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  }).then(parseHoldingPayload);
+  return parseHoldingPayload(
+    await request(`/portfolios/${portfolioId}/holdings`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  );
 }
 
-export async function getValuation(portfolioId: string): Promise<PortfolioValuation> {
-  return request<unknown>(`/portfolios/${portfolioId}/valuation`).then(
-    parsePortfolioValuationPayload,
+export async function getValuation(
+  portfolioId: string,
+): Promise<PortfolioValuation> {
+  return parsePortfolioValuationPayload(
+    await request(`/portfolios/${portfolioId}/valuation`),
   );
 }
 
 export async function listSnapshots(
   portfolioId: string,
 ): Promise<PortfolioSnapshot[]> {
-  return request<unknown>(
-    `/portfolios/${portfolioId}/snapshots?limit=10&offset=0`,
-  ).then(parsePortfolioSnapshotsPayload);
+  return parsePortfolioSnapshotsPayload(
+    await request(`/portfolios/${portfolioId}/snapshots?limit=10&offset=0`),
+  );
 }

@@ -1,13 +1,7 @@
 "use client";
 
-import {
-  FormEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  useTransition,
-} from "react";
+import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
+import {FormEvent, useEffect, useMemo, useState} from "react";
 
 import {
   createPortfolio,
@@ -18,17 +12,24 @@ import {
   listSnapshots,
   upsertHolding,
 } from "../lib/api";
-import {
-  Holding,
-  Portfolio,
-  PortfolioDetail,
-  PortfolioSnapshot,
-  PortfolioValuation,
-} from "../lib/types";
-import { parsePortfolioValuationPayload } from "../lib/contracts";
+import {parsePortfolioValuationPayload} from "../lib/contracts";
+import {Portfolio} from "../lib/types";
 
 const WS_BASE_URL =
   process.env.NEXT_PUBLIC_WS_BASE_URL ?? "ws://localhost:8000";
+const EMPTY_PORTFOLIOS: Portfolio[] = [];
+
+const portfolioQueryKeys = {
+  all: ["portfolios"] as const,
+  detail: (portfolioId: string) =>
+    ["portfolios", portfolioId, "detail"] as const,
+  holdings: (portfolioId: string) =>
+    ["portfolios", portfolioId, "holdings"] as const,
+  valuation: (portfolioId: string) =>
+    ["portfolios", portfolioId, "valuation"] as const,
+  snapshots: (portfolioId: string) =>
+    ["portfolios", portfolioId, "snapshots"] as const,
+};
 
 function formatMoney(value: string): string {
   return new Intl.NumberFormat("en-US", {
@@ -47,22 +48,53 @@ function formatTimestamp(value: string): string {
   }).format(new Date(value));
 }
 
+function toErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
 export function Dashboard() {
-  const [isPending, startTransition] = useTransition();
-  const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
+  const queryClient = useQueryClient();
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(
     null,
   );
-  const [portfolioDetail, setPortfolioDetail] =
-    useState<PortfolioDetail | null>(null);
-  const [holdings, setHoldings] = useState<Holding[]>([]);
-  const [valuation, setValuation] = useState<PortfolioValuation | null>(null);
-  const [snapshots, setSnapshots] = useState<PortfolioSnapshot[]>([]);
   const [portfolioName, setPortfolioName] = useState("");
   const [holdingSymbol, setHoldingSymbol] = useState("AAPL");
   const [holdingQuantity, setHoldingQuantity] = useState("10");
   const [holdingCostBasis, setHoldingCostBasis] = useState("180.00");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [actionErrorMessage, setActionErrorMessage] = useState<string | null>(
+    null,
+  );
+  const [realtimeErrorMessage, setRealtimeErrorMessage] = useState<
+    string | null
+  >(null);
+
+  const portfoliosQuery = useQuery({
+    queryKey: portfolioQueryKeys.all,
+    queryFn: listPortfolios,
+  });
+
+  const portfolios = portfoliosQuery.data ?? EMPTY_PORTFOLIOS;
+
+  useEffect(() => {
+    if (portfolios.length === 0) {
+      if (selectedPortfolioId !== null) {
+        setSelectedPortfolioId(null);
+      }
+      return;
+    }
+
+    if (
+      selectedPortfolioId === null ||
+      !portfolios.some((portfolio) => portfolio.id === selectedPortfolioId)
+    ) {
+      setSelectedPortfolioId(portfolios[0].id);
+    }
+  }, [portfolios, selectedPortfolioId]);
+
+  useEffect(() => {
+    setActionErrorMessage(null);
+    setRealtimeErrorMessage(null);
+  }, [selectedPortfolioId]);
 
   const selectedPortfolio = useMemo(
     () =>
@@ -71,140 +103,194 @@ export function Dashboard() {
     [portfolios, selectedPortfolioId],
   );
 
-  const refreshPortfolios = useCallback(
-    async (preferredPortfolioId?: string) => {
-      const nextPortfolios = await listPortfolios();
-      startTransition(() => {
-        setPortfolios(nextPortfolios);
-        if (nextPortfolios.length === 0) {
-          setSelectedPortfolioId(null);
-          return;
-        }
+  const portfolioDetailQuery = useQuery({
+    queryKey:
+      selectedPortfolioId === null
+        ? ["portfolios", "none", "detail"]
+        : portfolioQueryKeys.detail(selectedPortfolioId),
+    queryFn: () => getPortfolio(selectedPortfolioId as string),
+    enabled: selectedPortfolioId !== null,
+  });
 
-        const targetId =
-          preferredPortfolioId &&
-          nextPortfolios.some(
-            (portfolio) => portfolio.id === preferredPortfolioId,
-          )
-            ? preferredPortfolioId
-            : selectedPortfolioId &&
-                nextPortfolios.some(
-                  (portfolio) => portfolio.id === selectedPortfolioId,
-                )
-              ? selectedPortfolioId
-              : nextPortfolios[0].id;
+  const holdingsQuery = useQuery({
+    queryKey:
+      selectedPortfolioId === null
+        ? ["portfolios", "none", "holdings"]
+        : portfolioQueryKeys.holdings(selectedPortfolioId),
+    queryFn: () => listHoldings(selectedPortfolioId as string),
+    enabled: selectedPortfolioId !== null,
+  });
 
-        setSelectedPortfolioId(targetId);
-      });
+  const valuationQuery = useQuery({
+    queryKey:
+      selectedPortfolioId === null
+        ? ["portfolios", "none", "valuation"]
+        : portfolioQueryKeys.valuation(selectedPortfolioId),
+    queryFn: () => getValuation(selectedPortfolioId as string),
+    enabled: selectedPortfolioId !== null,
+  });
+
+  const snapshotsQuery = useQuery({
+    queryKey:
+      selectedPortfolioId === null
+        ? ["portfolios", "none", "snapshots"]
+        : portfolioQueryKeys.snapshots(selectedPortfolioId),
+    queryFn: () => listSnapshots(selectedPortfolioId as string),
+    enabled: selectedPortfolioId !== null,
+  });
+
+  const createPortfolioMutation = useMutation({
+    mutationFn: createPortfolio,
+    onMutate: () => {
+      setActionErrorMessage(null);
     },
-    [selectedPortfolioId],
-  );
+    onSuccess: async (portfolio) => {
+      setPortfolioName("");
+      setSelectedPortfolioId(portfolio.id);
+      queryClient.setQueryData<Portfolio[]>(
+        portfolioQueryKeys.all,
+        (current) => {
+          const next = current ?? [];
 
-  const refreshSelectedPortfolio = useCallback(async (portfolioId: string) => {
-    const [detail, nextHoldings, nextValuation, nextSnapshots] =
+          if (next.some((item) => item.id === portfolio.id)) {
+            return next;
+          }
+
+          return [...next, portfolio];
+        },
+      );
+      await queryClient.invalidateQueries({queryKey: portfolioQueryKeys.all});
+    },
+    onError: (error) => {
+      setActionErrorMessage(
+        toErrorMessage(error, "Failed to create portfolio."),
+      );
+    },
+  });
+
+  const upsertHoldingMutation = useMutation({
+    mutationFn: ({
+      portfolioId,
+      symbol,
+      quantity,
+      average_cost_basis,
+    }: {
+      portfolioId: string;
+      symbol: string;
+      quantity: string;
+      average_cost_basis: string;
+    }) =>
+      upsertHolding(portfolioId, {
+        symbol,
+        quantity,
+        average_cost_basis,
+      }),
+    onMutate: () => {
+      setActionErrorMessage(null);
+    },
+    onSuccess: async (_, variables) => {
       await Promise.all([
-        getPortfolio(portfolioId),
-        listHoldings(portfolioId),
-        getValuation(portfolioId),
-        listSnapshots(portfolioId),
+        queryClient.invalidateQueries({
+          queryKey: portfolioQueryKeys.detail(variables.portfolioId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: portfolioQueryKeys.holdings(variables.portfolioId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: portfolioQueryKeys.valuation(variables.portfolioId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: portfolioQueryKeys.snapshots(variables.portfolioId),
+        }),
       ]);
-
-    startTransition(() => {
-      setPortfolioDetail(detail);
-      setHoldings(nextHoldings);
-      setValuation(nextValuation);
-      setSnapshots(nextSnapshots);
-    });
-  }, []);
+    },
+    onError: (error) => {
+      setActionErrorMessage(toErrorMessage(error, "Failed to save holding."));
+    },
+  });
 
   useEffect(() => {
-    refreshPortfolios().catch((error: Error) => setErrorMessage(error.message));
-  }, [refreshPortfolios]);
-
-  useEffect(() => {
-    if (!selectedPortfolioId) {
-      startTransition(() => {
-        setPortfolioDetail(null);
-        setHoldings([]);
-        setValuation(null);
-        setSnapshots([]);
-      });
-      return;
-    }
-
-    refreshSelectedPortfolio(selectedPortfolioId).catch((error: Error) => {
-      setErrorMessage(error.message);
-    });
-  }, [refreshSelectedPortfolio, selectedPortfolioId]);
-
-  useEffect(() => {
-    if (!selectedPortfolioId) {
+    if (selectedPortfolioId === null) {
       return;
     }
 
     const websocket = new WebSocket(
       `${WS_BASE_URL}/ws/portfolios/${selectedPortfolioId}`,
     );
-    websocket.onmessage = (event) => {
-      const nextValuation = parsePortfolioValuationPayload(
-        JSON.parse(event.data),
-      );
-      startTransition(() => {
-        setValuation(nextValuation);
-      });
 
-      listSnapshots(selectedPortfolioId)
-        .then((nextSnapshots) => {
-          startTransition(() => {
-            setSnapshots(nextSnapshots);
-          });
-        })
-        .catch((error: Error) => setErrorMessage(error.message));
+    websocket.onmessage = (event) => {
+      try {
+        const nextValuation = parsePortfolioValuationPayload(
+          JSON.parse(event.data),
+        );
+
+        setRealtimeErrorMessage(null);
+        queryClient.setQueryData(
+          portfolioQueryKeys.valuation(selectedPortfolioId),
+          nextValuation,
+        );
+        void queryClient.invalidateQueries({
+          queryKey: portfolioQueryKeys.snapshots(selectedPortfolioId),
+        });
+      } catch (error) {
+        setRealtimeErrorMessage(
+          toErrorMessage(error, "Failed to process valuation update."),
+        );
+      }
     };
+
     websocket.onerror = () => {
-      setErrorMessage("Websocket connection failed.");
+      setRealtimeErrorMessage("Websocket connection failed.");
     };
 
     return () => {
       websocket.close();
     };
-  }, [selectedPortfolioId]);
+  }, [queryClient, selectedPortfolioId]);
 
   async function handleCreatePortfolio(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setErrorMessage(null);
-
-    try {
-      const portfolio = await createPortfolio({ name: portfolioName });
-      setPortfolioName("");
-      await refreshPortfolios(portfolio.id);
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "Failed to create portfolio.",
-      );
-    }
+    await createPortfolioMutation.mutateAsync({name: portfolioName});
   }
 
   async function handleUpsertHolding(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!selectedPortfolioId) {
+
+    if (selectedPortfolioId === null) {
       return;
     }
-    setErrorMessage(null);
 
-    try {
-      await upsertHolding(selectedPortfolioId, {
-        symbol: holdingSymbol,
-        quantity: holdingQuantity,
-        average_cost_basis: holdingCostBasis,
-      });
-      await refreshSelectedPortfolio(selectedPortfolioId);
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "Failed to save holding.",
-      );
-    }
+    await upsertHoldingMutation.mutateAsync({
+      portfolioId: selectedPortfolioId,
+      symbol: holdingSymbol,
+      quantity: holdingQuantity,
+      average_cost_basis: holdingCostBasis,
+    });
   }
+
+  const isRefreshing =
+    createPortfolioMutation.isPending ||
+    upsertHoldingMutation.isPending ||
+    portfoliosQuery.isFetching ||
+    portfolioDetailQuery.isFetching ||
+    holdingsQuery.isFetching ||
+    valuationQuery.isFetching ||
+    snapshotsQuery.isFetching;
+
+  const portfolioDetail = portfolioDetailQuery.data ?? null;
+  const holdings = holdingsQuery.data ?? [];
+  const valuation = valuationQuery.data ?? null;
+  const snapshots = snapshotsQuery.data ?? [];
+
+  const errorMessage =
+    actionErrorMessage ??
+    realtimeErrorMessage ??
+    portfoliosQuery.error?.message ??
+    portfolioDetailQuery.error?.message ??
+    holdingsQuery.error?.message ??
+    valuationQuery.error?.message ??
+    snapshotsQuery.error?.message ??
+    null;
 
   return (
     <main className="shell">
@@ -223,7 +309,7 @@ export function Dashboard() {
         <div className="hero-card">
           <span>Live Stack</span>
           <strong>API + Worker + Simulator + Redis + Postgres</strong>
-          <p>Current mode: {isPending ? "Refreshing" : "Streaming"}</p>
+          <p>Current mode: {isRefreshing ? "Refreshing" : "Streaming"}</p>
         </div>
       </section>
 
@@ -359,7 +445,7 @@ export function Dashboard() {
                     required
                   />
                 </label>
-                <button type="submit" disabled={!selectedPortfolioId}>
+                <button type="submit" disabled={selectedPortfolioId === null}>
                   Save holding
                 </button>
               </form>
