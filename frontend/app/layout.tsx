@@ -2,7 +2,7 @@ import "./globals.css";
 import type {Metadata} from "next";
 import {ReactNode} from "react";
 
-import QueryProvider from "@/components/query-provider";
+import QueryProvider from "@/components/QueryProvider";
 
 export const metadata: Metadata = {
   title: "Portfolio Analytics",

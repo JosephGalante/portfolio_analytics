@@ -17,7 +17,7 @@ const apiMocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/api", () => apiMocks);
 
-import Dashboard from "@/components/dashboard";
+import Dashboard from "@/components/Dashboard";
 
 class MockWebSocket {
   static instances: MockWebSocket[] = [];
