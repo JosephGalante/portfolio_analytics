@@ -1,6 +1,9 @@
-import { createElement } from "react";
-import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {QueryClientProvider} from "@tanstack/react-query";
+import {createElement} from "react";
+import {render, screen} from "@testing-library/react";
+import {beforeEach, describe, expect, it, vi} from "vitest";
+
+import {createAppQueryClient} from "../../lib/query-client";
 
 const apiMocks = vi.hoisted(() => ({
   createPortfolio: vi.fn(),
@@ -14,16 +17,14 @@ const apiMocks = vi.hoisted(() => ({
 
 vi.mock("../../lib/api", () => apiMocks);
 
-import { Dashboard } from "../../components/dashboard";
+import {Dashboard} from "../../components/dashboard";
 
 class MockWebSocket {
   static instances: MockWebSocket[] = [];
 
   close = vi.fn();
   onerror: ((event: Event) => void) | null = null;
-  onmessage:
-    | ((event: MessageEvent<string>) => void)
-    | null = null;
+  onmessage: ((event: MessageEvent<string>) => void) | null = null;
   url: string;
 
   constructor(url: string) {
@@ -56,6 +57,18 @@ describe("Dashboard", () => {
     apiMocks.listSnapshots.mockResolvedValue([]);
   });
 
+  function renderDashboard() {
+    const queryClient = createAppQueryClient();
+
+    return render(
+      createElement(
+        QueryClientProvider,
+        {client: queryClient},
+        createElement(Dashboard),
+      ),
+    );
+  }
+
   it("renders a loaded valuation", async () => {
     apiMocks.getValuation.mockResolvedValue({
       portfolio_id: "portfolio-1",
@@ -67,7 +80,7 @@ describe("Dashboard", () => {
       as_of: "2026-03-24T12:00:00Z",
     });
 
-    render(createElement(Dashboard));
+    renderDashboard();
 
     expect(await screen.findByText("Growth")).toBeTruthy();
     expect(await screen.findByText("$300.50")).toBeTruthy();
@@ -84,7 +97,7 @@ describe("Dashboard", () => {
       ),
     );
 
-    render(createElement(Dashboard));
+    renderDashboard();
 
     expect(
       await screen.findByText(

@@ -10,5 +10,7 @@ backend/*.egg-info/
 frontend/.next/
 frontend/node_modules/
 frontend/.env.local
+*.tsbuildinfo
 postgres-data/
 redis-data/
+.ruff_cache/

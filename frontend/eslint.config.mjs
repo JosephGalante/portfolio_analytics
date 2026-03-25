@@ -1,8 +1,8 @@
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import {dirname} from "node:path";
+import {fileURLToPath} from "node:url";
 
 import js from "@eslint/js";
-import { FlatCompat } from "@eslint/eslintrc";
+import {FlatCompat} from "@eslint/eslintrc";
 import prettierConfig from "eslint-config-prettier";
 import tseslint from "typescript-eslint";
 

@@ -1,10 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest";
 
-import {
-  getValuation,
-  listHoldings,
-  listSnapshots,
-} from "../../lib/api";
+import {getValuation, listHoldings, listSnapshots} from "../../lib/api";
 
 function jsonResponse(payload: unknown, status = 200): Partial<Response> {
   return {
@@ -81,7 +77,7 @@ describe("frontend api client", () => {
   });
 
   it("rejects malformed snapshot payload shapes", async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({ items: [] }));
+    fetchMock.mockResolvedValueOnce(jsonResponse({items: []}));
 
     await expect(listSnapshots("portfolio-1")).rejects.toThrow(
       "snapshots must be an array.",
