@@ -2,18 +2,22 @@ import "./globals.css";
 import type {Metadata} from "next";
 import {ReactNode} from "react";
 
-import {AppQueryProvider} from "@/components/query-provider";
+import QueryProvider from "@/components/query-provider";
 
 export const metadata: Metadata = {
   title: "Portfolio Analytics",
   description: "Real-time portfolio analytics dashboard",
 };
 
-export default function RootLayout({children}: {children: ReactNode}) {
+interface RootLayoutProps {
+  children: ReactNode;
+}
+
+export default function RootLayout({children}: RootLayoutProps) {
   return (
     <html lang="en">
       <body>
-        <AppQueryProvider>{children}</AppQueryProvider>
+        <QueryProvider>{children}</QueryProvider>
       </body>
     </html>
   );

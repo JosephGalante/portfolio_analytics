@@ -123,6 +123,10 @@ input {
   font-size: 1.5rem;
 }
 
+.status-chip-row {
+  margin-top: 1rem;
+}
+
 .grid {
   display: grid;
   grid-template-columns: 320px 1fr;
@@ -190,6 +194,12 @@ input {
   font-size: 0.85rem;
 }
 
+.panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .accent .panel-header span,
 .accent .metric-note {
   color: rgba(248, 241, 232, 0.76);
@@ -254,6 +264,12 @@ input {
   color: var(--muted);
 }
 
+.status-line {
+  margin: 0 0 0.75rem;
+  color: rgba(248, 241, 232, 0.76);
+  font-size: 0.88rem;
+}
+
 .row {
   display: grid;
   grid-template-columns: 1.1fr 1fr 1fr;
@@ -270,17 +286,63 @@ input {
 }
 
 .empty,
-.error-banner {
+.error-banner,
+.success-banner {
   margin: 0;
   color: var(--muted);
 }
 
-.error-banner {
+.feedback-stack {
+  display: grid;
+  gap: 0.75rem;
   margin-bottom: 1rem;
+}
+
+.error-banner {
   padding: 1rem 1.2rem;
   border-radius: 18px;
   background: rgba(124, 35, 26, 0.1);
   color: #7c231a;
+}
+
+.success-banner {
+  padding: 1rem 1.2rem;
+  border-radius: 18px;
+  background: rgba(35, 83, 71, 0.12);
+  color: #1a4a3d;
+}
+
+.secondary-button {
+  padding: 0.45rem 0.85rem;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: inherit;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.status-chip.live {
+  background: rgba(72, 187, 120, 0.16);
+  color: #d5ffe5;
+}
+
+.status-chip.error {
+  background: rgba(224, 108, 47, 0.18);
+  color: #ffd9c5;
+}
+
+.status-chip.muted {
+  background: rgba(248, 241, 232, 0.12);
+  color: rgba(248, 241, 232, 0.78);
 }
 
 @media (max-width: 1080px) {

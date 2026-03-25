@@ -11,9 +11,9 @@ import {
   listPortfolios,
   listSnapshots,
   upsertHolding,
-} from "../lib/api";
-import {parsePortfolioValuationPayload} from "../lib/contracts";
-import {Portfolio} from "../lib/types";
+} from "@/lib/api";
+import {parsePortfolioValuationPayload} from "@/lib/contracts";
+import {Portfolio} from "@/lib/types";
 
 const WS_BASE_URL =
   process.env.NEXT_PUBLIC_WS_BASE_URL ?? "ws://localhost:8000";
@@ -52,7 +52,7 @@ function toErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-export function Dashboard() {
+export default function Dashboard() {
   const queryClient = useQueryClient();
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(
     null,
@@ -64,9 +64,15 @@ export function Dashboard() {
   const [actionErrorMessage, setActionErrorMessage] = useState<string | null>(
     null,
   );
+  const [actionSuccessMessage, setActionSuccessMessage] = useState<
+    string | null
+  >(null);
   const [realtimeErrorMessage, setRealtimeErrorMessage] = useState<
     string | null
   >(null);
+  const [websocketStatus, setWebsocketStatus] = useState<
+    "idle" | "connecting" | "live" | "error"
+  >("idle");
 
   const portfoliosQuery = useQuery({
     queryKey: portfolioQueryKeys.all,
@@ -93,8 +99,24 @@ export function Dashboard() {
 
   useEffect(() => {
     setActionErrorMessage(null);
+    setActionSuccessMessage(null);
     setRealtimeErrorMessage(null);
+    setWebsocketStatus(selectedPortfolioId === null ? "idle" : "connecting");
   }, [selectedPortfolioId]);
+
+  useEffect(() => {
+    if (actionSuccessMessage === null) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setActionSuccessMessage(null);
+    }, 3500);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [actionSuccessMessage]);
 
   const selectedPortfolio = useMemo(
     () =>
@@ -143,10 +165,12 @@ export function Dashboard() {
     mutationFn: createPortfolio,
     onMutate: () => {
       setActionErrorMessage(null);
+      setActionSuccessMessage(null);
     },
     onSuccess: async (portfolio) => {
       setPortfolioName("");
       setSelectedPortfolioId(portfolio.id);
+      setActionSuccessMessage(`Created portfolio "${portfolio.name}".`);
       queryClient.setQueryData<Portfolio[]>(
         portfolioQueryKeys.all,
         (current) => {
@@ -187,8 +211,12 @@ export function Dashboard() {
       }),
     onMutate: () => {
       setActionErrorMessage(null);
+      setActionSuccessMessage(null);
     },
     onSuccess: async (_, variables) => {
+      setActionSuccessMessage(
+        `Saved ${variables.symbol.toUpperCase()} holding and refreshed portfolio data.`,
+      );
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: portfolioQueryKeys.detail(variables.portfolioId),
@@ -211,12 +239,19 @@ export function Dashboard() {
 
   useEffect(() => {
     if (selectedPortfolioId === null) {
+      setWebsocketStatus("idle");
       return;
     }
 
+    setWebsocketStatus("connecting");
     const websocket = new WebSocket(
       `${WS_BASE_URL}/ws/portfolios/${selectedPortfolioId}`,
     );
+
+    websocket.onopen = () => {
+      setWebsocketStatus("live");
+      setRealtimeErrorMessage(null);
+    };
 
     websocket.onmessage = (event) => {
       try {
@@ -240,6 +275,7 @@ export function Dashboard() {
     };
 
     websocket.onerror = () => {
+      setWebsocketStatus("error");
       setRealtimeErrorMessage("Websocket connection failed.");
     };
 
@@ -268,6 +304,30 @@ export function Dashboard() {
     });
   }
 
+  async function handleRefreshSelectedPortfolio() {
+    if (selectedPortfolioId === null) {
+      return;
+    }
+
+    setActionErrorMessage(null);
+    setRealtimeErrorMessage(null);
+
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: portfolioQueryKeys.detail(selectedPortfolioId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: portfolioQueryKeys.holdings(selectedPortfolioId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: portfolioQueryKeys.valuation(selectedPortfolioId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: portfolioQueryKeys.snapshots(selectedPortfolioId),
+      }),
+    ]);
+  }
+
   const isRefreshing =
     createPortfolioMutation.isPending ||
     upsertHoldingMutation.isPending ||
@@ -281,6 +341,22 @@ export function Dashboard() {
   const holdings = holdingsQuery.data ?? [];
   const valuation = valuationQuery.data ?? null;
   const snapshots = snapshotsQuery.data ?? [];
+  const streamStatusLabel =
+    websocketStatus === "live"
+      ? "Live feed connected"
+      : websocketStatus === "connecting"
+        ? "Connecting live feed"
+        : websocketStatus === "error"
+          ? "Live feed unavailable"
+          : "Awaiting portfolio";
+  const currentMode =
+    websocketStatus === "error"
+      ? "Degraded"
+      : websocketStatus === "connecting"
+        ? "Connecting"
+        : isRefreshing
+          ? "Refreshing"
+          : "Streaming";
 
   const errorMessage =
     actionErrorMessage ??
@@ -309,11 +385,31 @@ export function Dashboard() {
         <div className="hero-card">
           <span>Live Stack</span>
           <strong>API + Worker + Simulator + Redis + Postgres</strong>
-          <p>Current mode: {isRefreshing ? "Refreshing" : "Streaming"}</p>
+          <p>Current mode: {currentMode}</p>
+          <div className="status-chip-row">
+            <span
+              className={
+                websocketStatus === "live"
+                  ? "status-chip live"
+                  : websocketStatus === "error"
+                    ? "status-chip error"
+                    : "status-chip muted"
+              }
+            >
+              {streamStatusLabel}
+            </span>
+          </div>
         </div>
       </section>
 
-      {errorMessage ? <p className="error-banner">{errorMessage}</p> : null}
+      {errorMessage || actionSuccessMessage ? (
+        <div className="feedback-stack">
+          {errorMessage ? <p className="error-banner">{errorMessage}</p> : null}
+          {actionSuccessMessage ? (
+            <p className="success-banner">{actionSuccessMessage}</p>
+          ) : null}
+        </div>
+      ) : null}
 
       <section className="grid">
         <aside className="panel sidebar">
@@ -332,7 +428,11 @@ export function Dashboard() {
                 required
               />
             </label>
-            <button type="submit">Create portfolio</button>
+            <button type="submit" disabled={createPortfolioMutation.isPending}>
+              {createPortfolioMutation.isPending
+                ? "Creating..."
+                : "Create portfolio"}
+            </button>
           </form>
 
           <div className="portfolio-list">
@@ -351,7 +451,9 @@ export function Dashboard() {
                 <span>{formatTimestamp(portfolio.created_at)}</span>
               </button>
             ))}
-            {portfolios.length === 0 ? (
+            {portfolios.length === 0 && portfoliosQuery.isLoading ? (
+              <p className="empty">Loading portfolios...</p>
+            ) : portfolios.length === 0 ? (
               <p className="empty">Create a portfolio to begin.</p>
             ) : null}
           </div>
@@ -374,6 +476,8 @@ export function Dashboard() {
                     portfolio.
                   </p>
                 </>
+              ) : selectedPortfolioId && portfolioDetailQuery.isLoading ? (
+                <p className="empty">Loading portfolio details...</p>
               ) : (
                 <p className="empty">No portfolio selected.</p>
               )}
@@ -382,10 +486,23 @@ export function Dashboard() {
             <article className="panel metric-panel accent">
               <div className="panel-header">
                 <h2>Current valuation</h2>
-                <span>
-                  {valuation ? formatTimestamp(valuation.as_of) : "No data"}
-                </span>
+                <div className="panel-header-actions">
+                  <span>
+                    {valuation ? formatTimestamp(valuation.as_of) : "No data"}
+                  </span>
+                  <button
+                    className="secondary-button"
+                    disabled={selectedPortfolioId === null || isRefreshing}
+                    onClick={() => {
+                      void handleRefreshSelectedPortfolio();
+                    }}
+                    type="button"
+                  >
+                    Refresh
+                  </button>
+                </div>
               </div>
+              <p className="status-line">{streamStatusLabel}</p>
               {valuation ? (
                 <>
                   <strong className="metric-value">
@@ -397,6 +514,8 @@ export function Dashboard() {
                     priced holdings.
                   </p>
                 </>
+              ) : selectedPortfolioId && valuationQuery.isLoading ? (
+                <p className="empty">Loading latest valuation...</p>
               ) : (
                 <p className="empty">Waiting for prices or holdings.</p>
               )}
@@ -446,7 +565,9 @@ export function Dashboard() {
                   />
                 </label>
                 <button type="submit" disabled={selectedPortfolioId === null}>
-                  Save holding
+                  {upsertHoldingMutation.isPending
+                    ? "Saving..."
+                    : "Save holding"}
                 </button>
               </form>
 
@@ -458,7 +579,9 @@ export function Dashboard() {
                     <span>{formatMoney(holding.average_cost_basis)}</span>
                   </div>
                 ))}
-                {holdings.length === 0 ? (
+                {holdings.length === 0 && holdingsQuery.isLoading ? (
+                  <p className="empty">Loading holdings...</p>
+                ) : holdings.length === 0 ? (
                   <p className="empty">
                     No holdings yet. Add one to enable valuation updates.
                   </p>
@@ -479,7 +602,9 @@ export function Dashboard() {
                     <span>{formatTimestamp(snapshot.captured_at)}</span>
                   </div>
                 ))}
-                {snapshots.length === 0 ? (
+                {snapshots.length === 0 && snapshotsQuery.isLoading ? (
+                  <p className="empty">Loading snapshots...</p>
+                ) : snapshots.length === 0 ? (
                   <p className="empty">
                     Snapshots will appear after price ticks revalue the
                     portfolio.

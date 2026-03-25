@@ -3,7 +3,7 @@ import {createElement} from "react";
 import {render, screen} from "@testing-library/react";
 import {beforeEach, describe, expect, it, vi} from "vitest";
 
-import {createAppQueryClient} from "../../lib/query-client";
+import {createAppQueryClient} from "@/lib/query-client";
 
 const apiMocks = vi.hoisted(() => ({
   createPortfolio: vi.fn(),
@@ -15,14 +15,15 @@ const apiMocks = vi.hoisted(() => ({
   upsertHolding: vi.fn(),
 }));
 
-vi.mock("../../lib/api", () => apiMocks);
+vi.mock("@/lib/api", () => apiMocks);
 
-import {Dashboard} from "../../components/dashboard";
+import Dashboard from "@/components/dashboard";
 
 class MockWebSocket {
   static instances: MockWebSocket[] = [];
 
   close = vi.fn();
+  onopen: ((event: Event) => void) | null = null;
   onerror: ((event: Event) => void) | null = null;
   onmessage: ((event: MessageEvent<string>) => void) | null = null;
   url: string;

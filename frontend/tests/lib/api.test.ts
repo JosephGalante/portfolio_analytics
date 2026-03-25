@@ -1,6 +1,6 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest";
 
-import {getValuation, listHoldings, listSnapshots} from "../../lib/api";
+import {getValuation, listHoldings, listSnapshots} from "@/lib/api";
 
 function jsonResponse(payload: unknown, status = 200): Partial<Response> {
   return {

@@ -4,7 +4,7 @@ import {
   parseHoldingPayload,
   parsePortfolioSnapshotsPayload,
   parsePortfolioValuationPayload,
-} from "../../lib/contracts";
+} from "@/lib/contracts";
 
 describe("frontend payload contracts", () => {
   it("accepts normalized decimal strings for valuations", () => {
