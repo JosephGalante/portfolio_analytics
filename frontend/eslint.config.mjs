@@ -13,9 +13,9 @@ const compat = new FlatCompat({
   baseDirectory: __dirname,
 });
 
-export default tseslint.config(
+export default tseslint.defineConfig(
   {
-    ignores: [".next/**", "node_modules/**"],
+    ignores: [".next/**", "next-env.d.ts", "node_modules/**"],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

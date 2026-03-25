@@ -108,13 +108,29 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
-    environment: *frontend-env
+    environment:
+      <<: *frontend-env
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+      WATCHPACK_POLLING_INTERVAL: "1000"
     depends_on:
       api:
         condition: service_started
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
+    volumes:
+      - ./frontend:/app
+      - frontend-node-modules:/app/node_modules
+      - frontend-next-cache:/app/.next
+    command:
+      [
+        "sh",
+        "-c",
+        "if [ ! -x node_modules/.bin/next ]; then npm ci; fi; npm run dev"
+      ]
 
 volumes:
   postgres-data:
   redis-data:
+  frontend-node-modules:
+  frontend-next-cache:

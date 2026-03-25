@@ -18,8 +18,6 @@ class Settings(BaseSettings):
         "postgresql+asyncpg://portfolio:portfolio@localhost:5432/portfolio_analytics"
     )
     redis_url: str = "redis://localhost:6379/0"
-    seeded_user_email: str = "demo@example.com"
-    seeded_user_name: str = "Demo User"
     simulator_symbols: str = "AAPL,MSFT,NVDA,GOOGL,AMZN"
     simulator_tick_interval_ms: int = 1500
     simulator_initial_price_aapl: str = "185.00"

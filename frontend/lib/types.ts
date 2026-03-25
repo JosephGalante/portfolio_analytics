@@ -4,10 +4,17 @@ export type {
   PortfolioDetail,
   PortfolioSnapshot,
   PortfolioValuation,
+  User,
 } from "./contracts";
 
 export type CreatePortfolioPayload = {
   name: string;
+};
+
+export type RegisterPayload = {
+  email: string;
+  name: string;
+  password: string;
 };
 
 export type UpsertHoldingPayload = {

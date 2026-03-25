@@ -68,6 +68,19 @@ input {
   padding: 2rem;
 }
 
+.auth-shell {
+  display: grid;
+  align-items: center;
+  min-height: 100vh;
+}
+
+.auth-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 420px;
+  gap: 1.5rem;
+  align-items: start;
+}
+
 .hero {
   display: grid;
   grid-template-columns: 1.8fr 1fr;
@@ -174,6 +187,11 @@ input {
   display: grid;
   gap: 1rem;
   align-content: start;
+}
+
+.auth-panel {
+  display: grid;
+  gap: 1rem;
 }
 
 .panel-header {
@@ -319,6 +337,12 @@ input {
   color: inherit;
 }
 
+.ghost-button {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
 .status-chip {
   display: inline-flex;
   align-items: center;
@@ -345,7 +369,14 @@ input {
   color: rgba(248, 241, 232, 0.78);
 }
 
+.auth-signout {
+  margin-top: 1rem;
+  border-color: rgba(248, 241, 232, 0.2);
+  color: #f8f1e8;
+}
+
 @media (max-width: 1080px) {
+  .auth-grid,
   .hero,
   .grid,
   .summary-grid,

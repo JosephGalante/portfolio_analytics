@@ -3,15 +3,18 @@ import {createElement} from "react";
 import {render, screen} from "@testing-library/react";
 import {beforeEach, describe, expect, it, vi} from "vitest";
 
+import {storeAuthSession} from "@/lib/auth";
 import {createAppQueryClient} from "@/lib/query-client";
 
 const apiMocks = vi.hoisted(() => ({
   createPortfolio: vi.fn(),
+  getCurrentUser: vi.fn(),
   getPortfolio: vi.fn(),
   getValuation: vi.fn(),
   listHoldings: vi.fn(),
   listPortfolios: vi.fn(),
   listSnapshots: vi.fn(),
+  registerUser: vi.fn(),
   upsertHolding: vi.fn(),
 }));
 
@@ -46,8 +49,18 @@ describe("Dashboard", () => {
     Object.values(apiMocks).forEach((mock) => mock.mockReset());
     MockWebSocket.instances = [];
     vi.stubGlobal("WebSocket", MockWebSocket);
+    window.localStorage.clear();
+    storeAuthSession({
+      email: "tests@example.com",
+      password: "password123",
+    });
 
     apiMocks.createPortfolio.mockResolvedValue(basePortfolio);
+    apiMocks.getCurrentUser.mockResolvedValue({
+      id: "user-1",
+      email: "tests@example.com",
+      name: "Test User",
+    });
     apiMocks.upsertHolding.mockResolvedValue(undefined);
     apiMocks.listPortfolios.mockResolvedValue([basePortfolio]);
     apiMocks.getPortfolio.mockResolvedValue({

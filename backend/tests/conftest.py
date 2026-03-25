@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import sys
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -15,6 +16,7 @@ from app.db.base import Base
 from app.db.redis import get_redis
 from app.main import app
 from app.models.user import User
+from app.services.auth_service import hash_password
 from fakeredis.aioredis import FakeRedis
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -46,7 +48,11 @@ async def session_factory(db_engine) -> async_sessionmaker[AsyncSession]:
 @pytest.fixture
 async def current_user(session_factory: async_sessionmaker[AsyncSession]) -> User:
     async with session_factory() as session:
-        user = User(email="tests@example.com", name="Test User")
+        user = User(
+            email="tests@example.com",
+            name="Test User",
+            password_hash=hash_password("password123"),
+        )
         session.add(user)
         await session.commit()
         await session.refresh(user)
@@ -88,3 +94,34 @@ async def client(
         yield async_client
 
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+async def unauthenticated_client(
+    session_factory: async_sessionmaker[AsyncSession],
+    fake_redis: FakeRedis,
+) -> AsyncIterator[AsyncClient]:
+    async def override_get_db() -> AsyncIterator[AsyncSession]:
+        async with session_factory() as session:
+            yield session
+
+    async def override_get_redis() -> AsyncIterator[FakeRedis]:
+        yield fake_redis
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_redis] = override_get_redis
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as async_client:
+        yield async_client
+
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def basic_auth_header():
+    def _build(email: str, password: str) -> dict[str, str]:
+        token = base64.b64encode(f"{email}:{password}".encode()).decode("utf-8")
+        return {"Authorization": f"Basic {token}"}
+
+    return _build

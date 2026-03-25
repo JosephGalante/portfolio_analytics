@@ -15,6 +15,12 @@ export const portfolioSchema = z.object({
   updated_at: z.string(),
 });
 
+export const userSchema = z.object({
+  id: z.string(),
+  email: z.string(),
+  name: z.string(),
+});
+
 export const portfolioDetailSchema = portfolioSchema.extend({
   holdings_count: z.number(),
 });
@@ -49,6 +55,7 @@ export const portfolioSnapshotSchema = z.object({
 });
 
 export type Portfolio = z.infer<typeof portfolioSchema>;
+export type User = z.infer<typeof userSchema>;
 export type PortfolioDetail = z.infer<typeof portfolioDetailSchema>;
 export type Holding = z.infer<typeof holdingSchema>;
 export type PortfolioValuation = z.infer<typeof portfolioValuationSchema>;
@@ -117,6 +124,10 @@ function parsePayloadList<T>(
 
 export function parsePortfolioPayload(payload: unknown): Portfolio {
   return parsePayload(portfolioSchema, payload, "portfolio");
+}
+
+export function parseUserPayload(payload: unknown): User {
+  return parsePayload(userSchema, payload, "user");
 }
 
 export function parsePortfoliosPayload(payload: unknown): Portfolio[] {

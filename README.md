@@ -34,7 +34,7 @@ backend/
   app/
     api/          # REST + websocket routes
     core/         # settings and shared constants
-    db/           # SQLAlchemy + Redis clients + seed bootstrap
+    db/           # SQLAlchemy + Redis clients
     models/       # ORM models
     schemas/      # request/response contracts
     services/     # portfolio, holding, valuation, snapshot logic
@@ -52,6 +52,8 @@ docker-compose.yml
 ## Implemented API Surface
 
 REST:
+- `POST /auth/register`
+- `GET /auth/me`
 - `POST /portfolios`
 - `GET /portfolios`
 - `GET /portfolios/{portfolio_id}`
@@ -64,7 +66,7 @@ Realtime:
 - `GET /ws/portfolios/{portfolio_id}`
 
 Notes:
-- The MVP assumes a single seeded demo user created at API startup.
+- The app uses persisted users plus HTTP Basic authentication for both REST requests and websocket ownership checks.
 - Holdings are upserted by `(portfolio_id, symbol)`.
 - Valuation reads Redis first and falls back to recalculating from holdings plus latest cached symbol prices if the portfolio cache is cold.
 - Decimal-valued API fields are serialized as normalized strings such as `"200"` or `"300.5"`, not JSON numbers and not zero-padded strings like `"300.5000"`.
@@ -99,10 +101,11 @@ Useful URLs:
 ### Demo Flow
 
 1. Open the frontend.
-2. Create a portfolio.
-3. Add holdings such as `AAPL` or `MSFT`.
-4. Watch valuation start reflecting cached symbol prices.
-5. Keep the dashboard open and observe websocket-driven valuation changes and snapshots as new ticks arrive.
+2. Register an account or sign in with existing HTTP Basic credentials.
+3. Create a portfolio.
+4. Add holdings such as `AAPL` or `MSFT`.
+5. Watch valuation start reflecting cached symbol prices.
+6. Keep the dashboard open and observe websocket-driven valuation changes and snapshots as new ticks arrive.
 
 ## Verification Status
 
@@ -122,7 +125,7 @@ docker compose up --build
 
 ## Key Tradeoffs
 
-- Single seeded user instead of auth: keeps the MVP focused on systems design while preserving a realistic user-owned schema.
+- HTTP Basic auth with client-side credential storage: pragmatic for an MVP, but a production app would move to session or token-based auth with stronger browser-side security.
 - Redis Stream + Pub/Sub instead of a heavier queue: enough to show event-driven design without introducing Kafka or Celery complexity.
 - Snapshot on every affected revaluation: simple and interview-friendly, but intentionally higher write volume than a sampled production design.
 - In-memory websocket connection manager: acceptable for one API instance; multi-instance scaling would need a shared realtime layer.
@@ -130,7 +133,6 @@ docker compose up --build
 
 ## Future Improvements
 
-- Add authentication and user-scoped authorization.
 - Add pagination and filtering for portfolio and snapshot queries.
 - Upgrade the worker to Redis consumer groups with acknowledgment semantics.
 - Add rate limiting, retries, and event deduplication.
