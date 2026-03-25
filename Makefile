@@ -7,6 +7,8 @@ lint: backend-lint frontend-lint
 
 format: backend-format frontend-format
 
+code: format lint
+
 backend-lint:
 	$(BACKEND_PYTHON) -m ruff check backend/app
 
