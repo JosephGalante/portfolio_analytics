@@ -104,7 +104,6 @@ async def fetch_latest_price(symbol: str) -> MarketPrice:
     raise _service_error("Unable to fetch market data.")
 
 
-
 async def publish_price_tick(
     redis_client: Redis,
     market_price: MarketPrice,
