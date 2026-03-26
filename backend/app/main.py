@@ -9,21 +9,32 @@ from app.core.config import get_settings
 from app.db.redis import redis_client
 from app.websocket.manager import connection_manager
 from app.websocket.subscriber import portfolio_updates_listener
+from app.workers.market_data_poller import run_market_data_poller
+from app.workers.valuation_worker import run_worker
 
 settings = get_settings()
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    listener_task = asyncio.create_task(
-        portfolio_updates_listener(redis_client=redis_client, manager=connection_manager)
-    )
+    background_tasks = [
+        asyncio.create_task(
+            portfolio_updates_listener(redis_client=redis_client, manager=connection_manager)
+        )
+    ]
+
+    if settings.run_embedded_workers:
+        background_tasks.append(asyncio.create_task(run_worker()))
+        background_tasks.append(asyncio.create_task(run_market_data_poller()))
+
     try:
         yield
     finally:
-        listener_task.cancel()
-        with suppress(asyncio.CancelledError):
-            await listener_task
+        for task in background_tasks:
+            task.cancel()
+        for task in background_tasks:
+            with suppress(asyncio.CancelledError):
+                await task
         await redis_client.aclose()
 
 

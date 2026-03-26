@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     finnhub_api_url: str = "https://finnhub.io/api/v1"
     market_data_poll_interval_ms: int = 15000
     market_data_request_timeout_seconds: float = 10.0
+    run_embedded_workers: bool = False
     simulator_symbols: str = "AAPL,MSFT,NVDA,GOOGL,AMZN"
     simulator_tick_interval_ms: int = 1500
     simulator_initial_price_aapl: str = "185.00"
@@ -48,6 +49,14 @@ class Settings(BaseSettings):
             "GOOGL": self.simulator_initial_price_googl,
             "AMZN": self.simulator_initial_price_amzn,
         }
+
+    @property
+    def is_stytch_configured(self) -> bool:
+        return bool(self.stytch_project_id.strip() and self.stytch_secret.strip())
+
+    @property
+    def is_market_data_configured(self) -> bool:
+        return bool(self.finnhub_api_key.strip())
 
 
 @lru_cache

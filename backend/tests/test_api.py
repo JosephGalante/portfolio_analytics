@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.api import health as health_api
 from app.core.constants import portfolio_valuation_key, symbol_last_price_key
 from httpx import AsyncClient
 
@@ -20,6 +21,34 @@ async def test_create_and_list_portfolios(client: AsyncClient) -> None:
     assert len(portfolios) == 1
     assert portfolios[0]["id"] == created["id"]
     assert portfolios[0]["name"] == "Long-term Growth"
+
+
+async def test_health_returns_liveness_metadata(client: AsyncClient) -> None:
+    response = await client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+
+
+async def test_ready_returns_dependency_and_config_status(
+    client: AsyncClient,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(health_api.settings, "stytch_project_id", "project-test")
+    monkeypatch.setattr(health_api.settings, "stytch_secret", "secret-test")
+    monkeypatch.setattr(health_api.settings, "finnhub_api_key", "finnhub-test")
+    monkeypatch.setattr(health_api.settings, "run_embedded_workers", True)
+
+    response = await client.get("/ready")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "ready"
+    assert payload["checks"]["database"] == "ok"
+    assert payload["checks"]["redis"] == "ok"
+    assert payload["checks"]["stytch"] == "configured"
+    assert payload["checks"]["market_data"] == "configured"
+    assert payload["checks"]["embedded_workers"] == "enabled"
 
 
 async def test_holdings_upsert_keeps_single_symbol_row(client: AsyncClient) -> None:
