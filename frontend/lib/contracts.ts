@@ -1,11 +1,11 @@
-import {z} from "zod";
+import {z} from 'zod';
 
 const NORMALIZED_DECIMAL_PATTERN = /^-?(?:0|[1-9]\d*)(?:\.\d*[1-9])?$/;
 
 const normalizedDecimalStringSchema = z
   .string()
-  .refine((value) => value !== "-0" && NORMALIZED_DECIMAL_PATTERN.test(value), {
-    message: "must be a normalized decimal string.",
+  .refine((value) => value !== '-0' && NORMALIZED_DECIMAL_PATTERN.test(value), {
+    message: 'must be a normalized decimal string.',
   });
 
 export const portfolioSchema = z.object({
@@ -68,25 +68,25 @@ function formatContractError(error: z.ZodError, context: string): string {
   }
 
   if (issue.path.length === 0) {
-    if (issue.code === "invalid_type" && issue.expected === "array") {
+    if (issue.code === 'invalid_type' && issue.expected === 'array') {
       return `${context} must be an array.`;
     }
 
-    if (issue.code === "invalid_type" && issue.expected === "object") {
+    if (issue.code === 'invalid_type' && issue.expected === 'object') {
       return `${context} must be an object.`;
     }
 
     return `${context} ${issue.message}`;
   }
 
-  const path = issue.path.join(".");
+  const path = issue.path.join('.');
 
-  if (issue.code === "invalid_type") {
-    if (issue.expected === "string") {
+  if (issue.code === 'invalid_type') {
+    if (issue.expected === 'string') {
       return `${context}.${path} must be a string.`;
     }
 
-    if (issue.expected === "number") {
+    if (issue.expected === 'number') {
       return `${context}.${path} must be a number.`;
     }
   }
@@ -123,43 +123,43 @@ function parsePayloadList<T>(
 }
 
 export function parsePortfolioPayload(payload: unknown): Portfolio {
-  return parsePayload(portfolioSchema, payload, "portfolio");
+  return parsePayload(portfolioSchema, payload, 'portfolio');
 }
 
 export function parseUserPayload(payload: unknown): User {
-  return parsePayload(userSchema, payload, "user");
+  return parsePayload(userSchema, payload, 'user');
 }
 
 export function parsePortfoliosPayload(payload: unknown): Portfolio[] {
-  return parsePayloadList(payload, "portfolios", parsePortfolioPayload);
+  return parsePayloadList(payload, 'portfolios', parsePortfolioPayload);
 }
 
 export function parsePortfolioDetailPayload(payload: unknown): PortfolioDetail {
-  return parsePayload(portfolioDetailSchema, payload, "portfolio");
+  return parsePayload(portfolioDetailSchema, payload, 'portfolio');
 }
 
 export function parseHoldingPayload(payload: unknown): Holding {
-  return parsePayload(holdingSchema, payload, "holding");
+  return parsePayload(holdingSchema, payload, 'holding');
 }
 
 export function parseHoldingsPayload(payload: unknown): Holding[] {
-  return parsePayloadList(payload, "holdings", parseHoldingPayload);
+  return parsePayloadList(payload, 'holdings', parseHoldingPayload);
 }
 
 export function parsePortfolioValuationPayload(
   payload: unknown,
 ): PortfolioValuation {
-  return parsePayload(portfolioValuationSchema, payload, "valuation");
+  return parsePayload(portfolioValuationSchema, payload, 'valuation');
 }
 
 export function parsePortfolioSnapshotPayload(
   payload: unknown,
 ): PortfolioSnapshot {
-  return parsePayload(portfolioSnapshotSchema, payload, "snapshot");
+  return parsePayload(portfolioSnapshotSchema, payload, 'snapshot');
 }
 
 export function parsePortfolioSnapshotsPayload(
   payload: unknown,
 ): PortfolioSnapshot[] {
-  return parsePayloadList(payload, "snapshots", parsePortfolioSnapshotPayload);
+  return parsePayloadList(payload, 'snapshots', parsePortfolioSnapshotPayload);
 }

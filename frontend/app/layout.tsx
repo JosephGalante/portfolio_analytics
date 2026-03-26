@@ -1,12 +1,12 @@
-import "./globals.css";
-import type {Metadata} from "next";
-import {ReactNode} from "react";
+import './globals.css';
+import type {Metadata} from 'next';
+import {ReactNode} from 'react';
 
-import QueryProvider from "@/components/QueryProvider";
+import QueryProvider from '@/components/QueryProvider';
 
 export const metadata: Metadata = {
-  title: "Portfolio Analytics",
-  description: "Real-time portfolio analytics dashboard",
+  title: 'Portfolio Analytics',
+  description: 'Real-time portfolio analytics dashboard',
 };
 
 interface RootLayoutProps {

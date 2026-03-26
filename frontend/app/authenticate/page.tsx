@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import {useRouter} from "next/navigation";
-import {useEffect, useState} from "react";
-import {useForm} from "react-hook-form";
+import {useRouter} from 'next/navigation';
+import {useEffect, useState} from 'react';
+import {useForm} from 'react-hook-form';
 
-import {isStytchConfigured, stytchClient} from "@/lib/stytch";
-import {toErrorMessage} from "@/lib/utils";
+import {isStytchConfigured, stytchClient} from '@/lib/stytch';
+import {toErrorMessage} from '@/lib/utils';
 
 type PasswordResetFormValues = {
   confirmPassword: string;
@@ -24,14 +24,14 @@ export default function AuthenticatePage() {
     register,
   } = useForm<PasswordResetFormValues>({
     defaultValues: {
-      confirmPassword: "",
-      password: "",
+      confirmPassword: '',
+      password: '',
     },
-    mode: "onChange",
+    mode: 'onChange',
   });
 
   useEffect(() => {
-    setToken(new URLSearchParams(window.location.search).get("token"));
+    setToken(new URLSearchParams(window.location.search).get('token'));
   }, []);
 
   useEffect(() => {
@@ -44,12 +44,12 @@ export default function AuthenticatePage() {
       return;
     }
 
-    setErrorMessage("Invalid or missing password setup token.");
+    setErrorMessage('Invalid or missing password setup token.');
   }, [token]);
 
   async function handlePasswordReset(values: PasswordResetFormValues) {
     if (token == null) {
-      setErrorMessage("Invalid or missing password setup token.");
+      setErrorMessage('Invalid or missing password setup token.');
       return;
     }
 
@@ -59,7 +59,7 @@ export default function AuthenticatePage() {
     setSuccessMessage(null);
 
     if (values.password !== values.confirmPassword) {
-      setErrorMessage("Passwords do not match.");
+      setErrorMessage('Passwords do not match.');
       return;
     }
 
@@ -69,10 +69,10 @@ export default function AuthenticatePage() {
         session_duration_minutes: 60,
         token: passwordResetToken,
       });
-      setSuccessMessage("Password set successfully.");
-      router.replace("/");
+      setSuccessMessage('Password set successfully.');
+      router.replace('/');
     } catch (error) {
-      setErrorMessage(toErrorMessage(error, "Failed to set your password."));
+      setErrorMessage(toErrorMessage(error, 'Failed to set your password.'));
     }
   }
 
@@ -114,7 +114,7 @@ export default function AuthenticatePage() {
             <input
               autoComplete="new-password"
               disabled={isSubmitting || token === null}
-              {...register("password", {
+              {...register('password', {
                 minLength: 8,
                 required: true,
               })}
@@ -128,11 +128,11 @@ export default function AuthenticatePage() {
             <input
               autoComplete="new-password"
               disabled={isSubmitting || token === null}
-              {...register("confirmPassword", {
+              {...register('confirmPassword', {
                 minLength: 8,
                 required: true,
                 validate: (value) =>
-                  value === getValues("password") || "Passwords do not match.",
+                  value === getValues('password') || 'Passwords do not match.',
               })}
               minLength={8}
               required
@@ -143,7 +143,7 @@ export default function AuthenticatePage() {
             disabled={isSubmitting || token === null || !isValid}
             type="submit"
           >
-            {isSubmitting ? "Saving password..." : "Set password"}
+            {isSubmitting ? 'Saving password...' : 'Set password'}
           </button>
         </form>
       </section>

@@ -5,7 +5,7 @@ export type {
   PortfolioSnapshot,
   PortfolioValuation,
   User,
-} from "./contracts";
+} from './contracts';
 
 export type CreatePortfolioPayload = {
   name: string;

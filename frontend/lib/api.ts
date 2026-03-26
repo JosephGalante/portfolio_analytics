@@ -7,7 +7,7 @@ import {
   parsePortfoliosPayload,
   parsePortfolioSnapshotsPayload,
   parsePortfolioValuationPayload,
-} from "./contracts";
+} from './contracts';
 import {
   CreatePortfolioPayload,
   Holding,
@@ -17,22 +17,22 @@ import {
   PortfolioValuation,
   User,
   UpsertHoldingPayload,
-} from "./types";
-import {getStoredAuthorizationHeader} from "./auth";
+} from './types';
+import {getStoredAuthorizationHeader} from './auth';
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000';
 
 async function request(path: string, init?: RequestInit): Promise<unknown> {
   const authorization = getStoredAuthorizationHeader();
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: {
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
       ...(authorization ? {Authorization: authorization} : {}),
       ...(init?.headers ?? {}),
     },
-    cache: "no-store",
+    cache: 'no-store',
   });
 
   if (!response.ok) {
@@ -44,19 +44,19 @@ async function request(path: string, init?: RequestInit): Promise<unknown> {
 }
 
 export async function getCurrentUser(): Promise<User> {
-  return parseUserPayload(await request("/auth/me"));
+  return parseUserPayload(await request('/auth/me'));
 }
 
 export async function listPortfolios(): Promise<Portfolio[]> {
-  return parsePortfoliosPayload(await request("/portfolios"));
+  return parsePortfoliosPayload(await request('/portfolios'));
 }
 
 export async function createPortfolio(
   payload: CreatePortfolioPayload,
 ): Promise<Portfolio> {
   return parsePortfolioPayload(
-    await request("/portfolios", {
-      method: "POST",
+    await request('/portfolios', {
+      method: 'POST',
       body: JSON.stringify(payload),
     }),
   );
@@ -82,7 +82,7 @@ export async function upsertHolding(
 ): Promise<Holding> {
   return parseHoldingPayload(
     await request(`/portfolios/${portfolioId}/holdings`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify(payload),
     }),
   );

@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
-import {useRouter} from "next/navigation";
-import {useEffect, useMemo, useState} from "react";
-import {useForm} from "react-hook-form";
+import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
+import {useRouter} from 'next/navigation';
+import {useEffect, useMemo, useState} from 'react';
+import {useForm} from 'react-hook-form';
 
-import {useStytch, useStytchSession} from "@stytch/nextjs";
+import {useStytch, useStytchSession} from '@stytch/nextjs';
 
 import {
   createPortfolio,
@@ -16,27 +16,27 @@ import {
   listPortfolios,
   listSnapshots,
   upsertHolding,
-} from "@/lib/api";
-import {getStoredAuthorizationHeader} from "@/lib/auth";
-import {parsePortfolioValuationPayload} from "@/lib/contracts";
-import {isStytchConfigured} from "@/lib/stytch";
-import {Portfolio} from "@/lib/types";
+} from '@/lib/api';
+import {getStoredAuthorizationHeader} from '@/lib/auth';
+import {parsePortfolioValuationPayload} from '@/lib/contracts';
+import {isStytchConfigured} from '@/lib/stytch';
+import {Portfolio} from '@/lib/types';
 
 const WS_BASE_URL =
-  process.env.NEXT_PUBLIC_WS_BASE_URL ?? "ws://localhost:8000";
+  process.env.NEXT_PUBLIC_WS_BASE_URL ?? 'ws://localhost:8000';
 const EMPTY_PORTFOLIOS: Portfolio[] = [];
 
 const portfolioQueryKeys = {
-  me: ["auth", "me"] as const,
-  all: ["portfolios"] as const,
+  me: ['auth', 'me'] as const,
+  all: ['portfolios'] as const,
   detail: (portfolioId: string) =>
-    ["portfolios", portfolioId, "detail"] as const,
+    ['portfolios', portfolioId, 'detail'] as const,
   holdings: (portfolioId: string) =>
-    ["portfolios", portfolioId, "holdings"] as const,
+    ['portfolios', portfolioId, 'holdings'] as const,
   valuation: (portfolioId: string) =>
-    ["portfolios", portfolioId, "valuation"] as const,
+    ['portfolios', portfolioId, 'valuation'] as const,
   snapshots: (portfolioId: string) =>
-    ["portfolios", portfolioId, "snapshots"] as const,
+    ['portfolios', portfolioId, 'snapshots'] as const,
 };
 
 type CreatePortfolioFormValues = {
@@ -50,19 +50,19 @@ type HoldingFormValues = {
 };
 
 function formatMoney(value: string): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
     maximumFractionDigits: 2,
   }).format(Number(value));
 }
 
 function formatTimestamp(value: string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
   }).format(new Date(value));
 }
 
@@ -92,8 +92,8 @@ export default function Dashboard() {
     string | null
   >(null);
   const [websocketStatus, setWebsocketStatus] = useState<
-    "idle" | "connecting" | "live" | "error"
-  >("idle");
+    'idle' | 'connecting' | 'live' | 'error'
+  >('idle');
   const [isSigningOut, setIsSigningOut] = useState(false);
   const {
     formState: {
@@ -105,9 +105,9 @@ export default function Dashboard() {
     reset: resetCreatePortfolioForm,
   } = useForm<CreatePortfolioFormValues>({
     defaultValues: {
-      portfolioName: "",
+      portfolioName: '',
     },
-    mode: "onChange",
+    mode: 'onChange',
   });
   const {
     formState: {isSubmitting: isHoldingSubmitting, isValid: isHoldingValid},
@@ -115,11 +115,11 @@ export default function Dashboard() {
     register: registerHolding,
   } = useForm<HoldingFormValues>({
     defaultValues: {
-      averageCostBasis: "180.00",
-      quantity: "10",
-      symbol: "AAPL",
+      averageCostBasis: '180.00',
+      quantity: '10',
+      symbol: 'AAPL',
     },
-    mode: "onChange",
+    mode: 'onChange',
   });
 
   const currentUserQuery = useQuery({
@@ -139,12 +139,12 @@ export default function Dashboard() {
 
     setSelectedPortfolioId(null);
     queryClient.removeQueries({queryKey: portfolioQueryKeys.me});
-    router.replace("/auth");
+    router.replace('/auth');
   }, [currentUserQuery.error, queryClient, router]);
 
   useEffect(() => {
     if (isReady && !hasStytchSession) {
-      router.replace("/auth");
+      router.replace('/auth');
     }
   }, [isReady, hasStytchSession, router]);
 
@@ -176,7 +176,7 @@ export default function Dashboard() {
     setActionErrorMessage(null);
     setActionSuccessMessage(null);
     setRealtimeErrorMessage(null);
-    setWebsocketStatus(selectedPortfolioId === null ? "idle" : "connecting");
+    setWebsocketStatus(selectedPortfolioId === null ? 'idle' : 'connecting');
   }, [selectedPortfolioId]);
 
   useEffect(() => {
@@ -203,7 +203,7 @@ export default function Dashboard() {
   const portfolioDetailQuery = useQuery({
     queryKey:
       selectedPortfolioId === null
-        ? ["portfolios", "none", "detail"]
+        ? ['portfolios', 'none', 'detail']
         : portfolioQueryKeys.detail(selectedPortfolioId),
     queryFn: () => getPortfolio(selectedPortfolioId as string),
     enabled:
@@ -213,7 +213,7 @@ export default function Dashboard() {
   const holdingsQuery = useQuery({
     queryKey:
       selectedPortfolioId === null
-        ? ["portfolios", "none", "holdings"]
+        ? ['portfolios', 'none', 'holdings']
         : portfolioQueryKeys.holdings(selectedPortfolioId),
     queryFn: () => listHoldings(selectedPortfolioId as string),
     enabled:
@@ -223,7 +223,7 @@ export default function Dashboard() {
   const valuationQuery = useQuery({
     queryKey:
       selectedPortfolioId === null
-        ? ["portfolios", "none", "valuation"]
+        ? ['portfolios', 'none', 'valuation']
         : portfolioQueryKeys.valuation(selectedPortfolioId),
     queryFn: () => getValuation(selectedPortfolioId as string),
     enabled:
@@ -233,7 +233,7 @@ export default function Dashboard() {
   const snapshotsQuery = useQuery({
     queryKey:
       selectedPortfolioId === null
-        ? ["portfolios", "none", "snapshots"]
+        ? ['portfolios', 'none', 'snapshots']
         : portfolioQueryKeys.snapshots(selectedPortfolioId),
     queryFn: () => listSnapshots(selectedPortfolioId as string),
     enabled:
@@ -266,7 +266,7 @@ export default function Dashboard() {
     },
     onError: (error) => {
       setActionErrorMessage(
-        toErrorMessage(error, "Failed to create portfolio."),
+        toErrorMessage(error, 'Failed to create portfolio.'),
       );
     },
   });
@@ -312,24 +312,24 @@ export default function Dashboard() {
       ]);
     },
     onError: (error) => {
-      setActionErrorMessage(toErrorMessage(error, "Failed to save holding."));
+      setActionErrorMessage(toErrorMessage(error, 'Failed to save holding.'));
     },
   });
 
   useEffect(() => {
     if (selectedPortfolioId === null || currentUserQuery.data === undefined) {
-      setWebsocketStatus("idle");
+      setWebsocketStatus('idle');
       return;
     }
 
     const authorization = getStoredAuthorizationHeader();
     if (authorization === null) {
-      setWebsocketStatus("error");
-      setRealtimeErrorMessage("No active session available for live updates.");
+      setWebsocketStatus('error');
+      setRealtimeErrorMessage('No active session available for live updates.');
       return;
     }
 
-    setWebsocketStatus("connecting");
+    setWebsocketStatus('connecting');
     const websocket = new WebSocket(
       `${WS_BASE_URL}/ws/portfolios/${selectedPortfolioId}?authorization=${encodeURIComponent(
         authorization,
@@ -337,7 +337,7 @@ export default function Dashboard() {
     );
 
     websocket.onopen = () => {
-      setWebsocketStatus("live");
+      setWebsocketStatus('live');
       setRealtimeErrorMessage(null);
     };
 
@@ -357,14 +357,14 @@ export default function Dashboard() {
         });
       } catch (error) {
         setRealtimeErrorMessage(
-          toErrorMessage(error, "Failed to process valuation update."),
+          toErrorMessage(error, 'Failed to process valuation update.'),
         );
       }
     };
 
     websocket.onerror = () => {
-      setWebsocketStatus("error");
-      setRealtimeErrorMessage("Websocket connection failed.");
+      setWebsocketStatus('error');
+      setRealtimeErrorMessage('Websocket connection failed.');
     };
 
     return () => {
@@ -382,7 +382,7 @@ export default function Dashboard() {
       try {
         await stytch.session.revoke({forceClear: true});
       } catch (error) {
-        setActionErrorMessage(toErrorMessage(error, "Failed to sign out."));
+        setActionErrorMessage(toErrorMessage(error, 'Failed to sign out.'));
       } finally {
         setIsSigningOut(false);
       }
@@ -390,7 +390,7 @@ export default function Dashboard() {
 
     setSelectedPortfolioId(null);
     queryClient.clear();
-    router.replace("/auth");
+    router.replace('/auth');
   }
 
   async function handleCreatePortfolio(values: CreatePortfolioFormValues) {
@@ -521,21 +521,21 @@ export default function Dashboard() {
   const valuation = valuationQuery.data ?? null;
   const snapshots = snapshotsQuery.data ?? [];
   const streamStatusLabel =
-    websocketStatus === "live"
-      ? "Live feed connected"
-      : websocketStatus === "connecting"
-        ? "Connecting live feed"
-        : websocketStatus === "error"
-          ? "Live feed unavailable"
-          : "Awaiting portfolio";
+    websocketStatus === 'live'
+      ? 'Live feed connected'
+      : websocketStatus === 'connecting'
+        ? 'Connecting live feed'
+        : websocketStatus === 'error'
+          ? 'Live feed unavailable'
+          : 'Awaiting portfolio';
   const currentMode =
-    websocketStatus === "error"
-      ? "Degraded"
-      : websocketStatus === "connecting"
-        ? "Connecting"
+    websocketStatus === 'error'
+      ? 'Degraded'
+      : websocketStatus === 'connecting'
+        ? 'Connecting'
         : isRefreshing
-          ? "Refreshing"
-          : "Streaming";
+          ? 'Refreshing'
+          : 'Streaming';
 
   const errorMessage =
     actionErrorMessage ??
@@ -569,11 +569,11 @@ export default function Dashboard() {
           <div className="status-chip-row">
             <span
               className={
-                websocketStatus === "live"
-                  ? "status-chip live"
-                  : websocketStatus === "error"
-                    ? "status-chip error"
-                    : "status-chip muted"
+                websocketStatus === 'live'
+                  ? 'status-chip live'
+                  : websocketStatus === 'error'
+                    ? 'status-chip error'
+                    : 'status-chip muted'
               }
             >
               {streamStatusLabel}
@@ -585,7 +585,7 @@ export default function Dashboard() {
             onClick={() => void handleSignOut()}
             type="button"
           >
-            {isSigningOut ? "Signing out..." : "Sign out"}
+            {isSigningOut ? 'Signing out...' : 'Sign out'}
           </button>
         </div>
       </section>
@@ -617,10 +617,10 @@ export default function Dashboard() {
                   createPortfolioMutation.isPending ||
                   isCreatePortfolioSubmitting
                 }
-                {...registerCreatePortfolio("portfolioName", {
+                {...registerCreatePortfolio('portfolioName', {
                   required: true,
                   validate: (value) =>
-                    value.trim().length > 0 || "Portfolio name is required.",
+                    value.trim().length > 0 || 'Portfolio name is required.',
                 })}
                 placeholder="Long-term growth"
                 required
@@ -635,8 +635,8 @@ export default function Dashboard() {
               type="submit"
             >
               {createPortfolioMutation.isPending || isCreatePortfolioSubmitting
-                ? "Creating..."
-                : "Create portfolio"}
+                ? 'Creating...'
+                : 'Create portfolio'}
             </button>
           </form>
 
@@ -646,8 +646,8 @@ export default function Dashboard() {
                 key={portfolio.id}
                 className={
                   portfolio.id === selectedPortfolioId
-                    ? "portfolio-card active"
-                    : "portfolio-card"
+                    ? 'portfolio-card active'
+                    : 'portfolio-card'
                 }
                 onClick={() => setSelectedPortfolioId(portfolio.id)}
                 type="button"
@@ -669,7 +669,7 @@ export default function Dashboard() {
             <article className="panel metric-panel">
               <div className="panel-header">
                 <h2>Selected portfolio</h2>
-                <span>{selectedPortfolio ? "Owned" : "Idle"}</span>
+                <span>{selectedPortfolio ? 'Owned' : 'Idle'}</span>
               </div>
               {portfolioDetail ? (
                 <>
@@ -693,7 +693,7 @@ export default function Dashboard() {
                 <h2>Current valuation</h2>
                 <div className="panel-header-actions">
                   <span>
-                    {valuation ? formatTimestamp(valuation.as_of) : "No data"}
+                    {valuation ? formatTimestamp(valuation.as_of) : 'No data'}
                   </span>
                   <button
                     className="secondary-button"
@@ -714,8 +714,8 @@ export default function Dashboard() {
                     {formatMoney(valuation.total_market_value)}
                   </strong>
                   <p className="metric-note">
-                    PnL {formatMoney(valuation.unrealized_pnl)} across{" "}
-                    {valuation.priced_holdings_count}/{valuation.holdings_count}{" "}
+                    PnL {formatMoney(valuation.unrealized_pnl)} across{' '}
+                    {valuation.priced_holdings_count}/{valuation.holdings_count}{' '}
                     priced holdings.
                   </p>
                 </>
@@ -746,13 +746,13 @@ export default function Dashboard() {
                       upsertHoldingMutation.isPending ||
                       isHoldingSubmitting
                     }
-                    {...registerHolding("symbol", {
+                    {...registerHolding('symbol', {
                       onChange: (event) => {
                         event.target.value = event.target.value.toUpperCase();
                       },
                       required: true,
                       validate: (value) =>
-                        value.trim().length > 0 || "Symbol is required.",
+                        value.trim().length > 0 || 'Symbol is required.',
                     })}
                     required
                   />
@@ -765,10 +765,10 @@ export default function Dashboard() {
                       upsertHoldingMutation.isPending ||
                       isHoldingSubmitting
                     }
-                    {...registerHolding("quantity", {
+                    {...registerHolding('quantity', {
                       required: true,
                       validate: (value) =>
-                        Number(value) > 0 || "Quantity must be greater than 0.",
+                        Number(value) > 0 || 'Quantity must be greater than 0.',
                     })}
                     type="number"
                     min="0.000001"
@@ -784,11 +784,11 @@ export default function Dashboard() {
                       upsertHoldingMutation.isPending ||
                       isHoldingSubmitting
                     }
-                    {...registerHolding("averageCostBasis", {
+                    {...registerHolding('averageCostBasis', {
                       required: true,
                       validate: (value) =>
                         Number(value) > 0 ||
-                        "Average cost basis must be greater than 0.",
+                        'Average cost basis must be greater than 0.',
                     })}
                     type="number"
                     min="0.0001"
@@ -806,8 +806,8 @@ export default function Dashboard() {
                   type="submit"
                 >
                   {upsertHoldingMutation.isPending || isHoldingSubmitting
-                    ? "Saving..."
-                    : "Save holding"}
+                    ? 'Saving...'
+                    : 'Save holding'}
                 </button>
               </form>
 

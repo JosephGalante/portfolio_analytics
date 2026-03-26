@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import {useStytch, useStytchSession} from "@stytch/nextjs";
-import {useState} from "react";
-import {useForm} from "react-hook-form";
+import {useStytch, useStytchSession} from '@stytch/nextjs';
+import {useState} from 'react';
+import {useForm} from 'react-hook-form';
 
-import {getStytchPasswordResetRedirectUrl} from "@/lib/stytch";
-import {toErrorMessage} from "@/lib/utils";
+import {getStytchPasswordResetRedirectUrl} from '@/lib/stytch';
+import {toErrorMessage} from '@/lib/utils';
 
 type PasswordSignInValues = {
   email: string;
@@ -21,7 +21,7 @@ export default function StytchAuthPanel() {
   const {isInitialized, session} = useStytchSession();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [mode, setMode] = useState<"signin" | "setup">("signin");
+  const [mode, setMode] = useState<'signin' | 'setup'>('signin');
   const [isSigningOut, setIsSigningOut] = useState(false);
   const {
     formState: {
@@ -32,10 +32,10 @@ export default function StytchAuthPanel() {
     register: registerPasswordSignIn,
   } = useForm<PasswordSignInValues>({
     defaultValues: {
-      email: "",
-      password: "",
+      email: '',
+      password: '',
     },
-    mode: "onChange",
+    mode: 'onChange',
   });
   const {
     formState: {
@@ -47,9 +47,9 @@ export default function StytchAuthPanel() {
     reset: resetPasswordSetupForm,
   } = useForm<PasswordSetupValues>({
     defaultValues: {
-      email: "",
+      email: '',
     },
-    mode: "onChange",
+    mode: 'onChange',
   });
 
   async function handleSignOut() {
@@ -60,7 +60,7 @@ export default function StytchAuthPanel() {
     try {
       await stytch.session.revoke();
     } catch (error) {
-      setErrorMessage(toErrorMessage(error, "Failed to sign out of Stytch."));
+      setErrorMessage(toErrorMessage(error, 'Failed to sign out of Stytch.'));
     } finally {
       setIsSigningOut(false);
     }
@@ -76,9 +76,9 @@ export default function StytchAuthPanel() {
         password: values.password,
         session_duration_minutes: 60,
       });
-      setSuccessMessage("Password sign-in succeeded.");
+      setSuccessMessage('Password sign-in succeeded.');
     } catch (error) {
-      setErrorMessage(toErrorMessage(error, "Failed to sign in."));
+      setErrorMessage(toErrorMessage(error, 'Failed to sign in.'));
     }
   }
 
@@ -94,10 +94,10 @@ export default function StytchAuthPanel() {
       });
       resetPasswordSetupForm();
       setSuccessMessage(
-        "If your account is provisioned, check your email for the password setup link.",
+        'If your account is provisioned, check your email for the password setup link.',
       );
     } catch (error) {
-      setErrorMessage(toErrorMessage(error, "Failed to send setup email."));
+      setErrorMessage(toErrorMessage(error, 'Failed to send setup email.'));
     }
   }
 
@@ -132,7 +132,7 @@ export default function StytchAuthPanel() {
           sign out and try again or check the backend auth configuration.
         </p>
         <button disabled={isSigningOut} onClick={() => void handleSignOut()}>
-          {isSigningOut ? "Signing out..." : "Sign out of Stytch"}
+          {isSigningOut ? 'Signing out...' : 'Sign out of Stytch'}
         </button>
       </section>
     );
@@ -141,9 +141,9 @@ export default function StytchAuthPanel() {
   return (
     <section className="panel auth-panel">
       <div className="panel-header">
-        <h2>{mode === "signin" ? "Sign in" : "Set password"}</h2>
+        <h2>{mode === 'signin' ? 'Sign in' : 'Set password'}</h2>
         <span>
-          {mode === "signin" ? "Email + password" : "Email confirmation"}
+          {mode === 'signin' ? 'Email + password' : 'Email confirmation'}
         </span>
       </div>
 
@@ -152,7 +152,7 @@ export default function StytchAuthPanel() {
         <p className="success-banner">{successMessage}</p>
       ) : null}
 
-      {mode === "signin" ? (
+      {mode === 'signin' ? (
         <>
           <p className="lede">
             Sign in with the email address and password you set after your
@@ -167,7 +167,7 @@ export default function StytchAuthPanel() {
               <input
                 autoComplete="username"
                 disabled={isPasswordSignInSubmitting}
-                {...registerPasswordSignIn("email", {
+                {...registerPasswordSignIn('email', {
                   required: true,
                 })}
                 required
@@ -179,7 +179,7 @@ export default function StytchAuthPanel() {
               <input
                 autoComplete="current-password"
                 disabled={isPasswordSignInSubmitting}
-                {...registerPasswordSignIn("password", {
+                {...registerPasswordSignIn('password', {
                   minLength: 8,
                   required: true,
                 })}
@@ -192,7 +192,7 @@ export default function StytchAuthPanel() {
               disabled={isPasswordSignInSubmitting || !isPasswordSignInValid}
               type="submit"
             >
-              {isPasswordSignInSubmitting ? "Signing in..." : "Sign in"}
+              {isPasswordSignInSubmitting ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
         </>
@@ -210,7 +210,7 @@ export default function StytchAuthPanel() {
               <input
                 autoComplete="username"
                 disabled={isPasswordSetupSubmitting}
-                {...registerPasswordSetup("email", {
+                {...registerPasswordSetup('email', {
                   required: true,
                 })}
                 required
@@ -222,8 +222,8 @@ export default function StytchAuthPanel() {
               type="submit"
             >
               {isPasswordSetupSubmitting
-                ? "Sending setup email..."
-                : "Email password setup link"}
+                ? 'Sending setup email...'
+                : 'Email password setup link'}
             </button>
           </form>
         </>
@@ -235,13 +235,13 @@ export default function StytchAuthPanel() {
         onClick={() => {
           setErrorMessage(null);
           setSuccessMessage(null);
-          setMode(mode === "signin" ? "setup" : "signin");
+          setMode(mode === 'signin' ? 'setup' : 'signin');
         }}
         type="button"
       >
-        {mode === "signin"
-          ? "Need to set your password?"
-          : "Already have a password? Sign in"}
+        {mode === 'signin'
+          ? 'Need to set your password?'
+          : 'Already have a password? Sign in'}
       </button>
     </section>
   );

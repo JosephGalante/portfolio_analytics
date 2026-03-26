@@ -1,9 +1,9 @@
-import {QueryClientProvider} from "@tanstack/react-query";
-import {createElement} from "react";
-import {render, screen} from "@testing-library/react";
-import {beforeEach, describe, expect, it, vi} from "vitest";
+import {QueryClientProvider} from '@tanstack/react-query';
+import {createElement} from 'react';
+import {render, screen} from '@testing-library/react';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-import {createAppQueryClient} from "@/lib/query-client";
+import {createAppQueryClient} from '@/lib/query-client';
 
 const apiMocks = vi.hoisted(() => ({
   createPortfolio: vi.fn(),
@@ -20,18 +20,18 @@ const navigationMocks = vi.hoisted(() => ({
   replace: vi.fn(),
 }));
 
-vi.mock("@/lib/api", () => apiMocks);
-vi.mock("@/lib/stytch", () => ({
+vi.mock('@/lib/api', () => apiMocks);
+vi.mock('@/lib/stytch', () => ({
   isStytchConfigured: true,
   stytchClient: {
     session: {
       getTokens: () => ({
-        session_jwt: "test-session-jwt",
+        session_jwt: 'test-session-jwt',
       }),
     },
   },
 }));
-vi.mock("@stytch/nextjs", () => ({
+vi.mock('@stytch/nextjs', () => ({
   useStytch: () => ({
     session: {
       revoke: vi.fn().mockResolvedValue(undefined),
@@ -39,15 +39,15 @@ vi.mock("@stytch/nextjs", () => ({
   }),
   useStytchSession: () => ({
     isInitialized: true,
-    session: {session_id: "session-1"},
+    session: {session_id: 'session-1'},
   }),
 }));
-vi.mock("next/navigation", () => ({
+vi.mock('next/navigation', () => ({
   useRouter: () => navigationMocks,
 }));
 
-import Dashboard from "@/components/Dashboard";
-import {Portfolio} from "@/lib/contracts";
+import Dashboard from '@/components/Dashboard';
+import {Portfolio} from '@/lib/contracts';
 
 class MockWebSocket {
   static instances: MockWebSocket[] = [];
@@ -65,23 +65,23 @@ class MockWebSocket {
 }
 
 const basePortfolio: Portfolio = {
-  id: "portfolio-1",
-  name: "Growth",
-  created_at: "2026-03-24T12:00:00Z",
-  updated_at: "2026-03-24T12:00:00Z",
+  id: 'portfolio-1',
+  name: 'Growth',
+  created_at: '2026-03-24T12:00:00Z',
+  updated_at: '2026-03-24T12:00:00Z',
 };
 
-describe("Dashboard", () => {
+describe('Dashboard', () => {
   beforeEach(() => {
     Object.values(apiMocks).forEach((mock) => mock.mockReset());
     MockWebSocket.instances = [];
-    vi.stubGlobal("WebSocket", MockWebSocket);
+    vi.stubGlobal('WebSocket', MockWebSocket);
 
     apiMocks.createPortfolio.mockResolvedValue(basePortfolio);
     apiMocks.getCurrentUser.mockResolvedValue({
-      id: "user-1",
-      email: "tests@example.com",
-      name: "Test User",
+      id: 'user-1',
+      email: 'tests@example.com',
+      name: 'Test User',
     });
     apiMocks.upsertHolding.mockResolvedValue(undefined);
     apiMocks.listPortfolios.mockResolvedValue([basePortfolio]);
@@ -105,31 +105,31 @@ describe("Dashboard", () => {
     );
   }
 
-  it("renders a loaded valuation", async () => {
+  it('renders a loaded valuation', async () => {
     apiMocks.getValuation.mockResolvedValue({
-      portfolio_id: "portfolio-1",
-      total_market_value: "300.5",
-      total_cost_basis: "200",
-      unrealized_pnl: "100.5",
+      portfolio_id: 'portfolio-1',
+      total_market_value: '300.5',
+      total_cost_basis: '200',
+      unrealized_pnl: '100.5',
       holdings_count: 1,
       priced_holdings_count: 1,
-      as_of: "2026-03-24T12:00:00Z",
+      as_of: '2026-03-24T12:00:00Z',
     });
 
     renderDashboard();
 
-    expect(await screen.findByText("Growth")).toBeTruthy();
-    expect(await screen.findByText("$300.50")).toBeTruthy();
+    expect(await screen.findByText('Growth')).toBeTruthy();
+    expect(await screen.findByText('$300.50')).toBeTruthy();
     expect(
       await screen.findByText(/PnL \$100\.50 across 1\/1 priced holdings\./),
     ).toBeTruthy();
     expect(MockWebSocket.instances).toHaveLength(1);
   });
 
-  it("shows an error when valuation loading fails", async () => {
+  it('shows an error when valuation loading fails', async () => {
     apiMocks.getValuation.mockRejectedValue(
       new Error(
-        "valuation.total_market_value must be a normalized decimal string.",
+        'valuation.total_market_value must be a normalized decimal string.',
       ),
     );
 
@@ -137,7 +137,7 @@ describe("Dashboard", () => {
 
     expect(
       await screen.findByText(
-        "valuation.total_market_value must be a normalized decimal string.",
+        'valuation.total_market_value must be a normalized decimal string.',
       ),
     ).toBeTruthy();
   });

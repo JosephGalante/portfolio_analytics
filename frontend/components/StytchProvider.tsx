@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import {StytchProvider as StytchContextProvider} from "@stytch/nextjs";
-import {ReactNode} from "react";
+import {StytchProvider as StytchContextProvider} from '@stytch/nextjs';
+import {ReactNode} from 'react';
 
-import {stytchClient} from "@/lib/stytch";
+import {stytchClient} from '@/lib/stytch';
 
 interface StytchProviderProps {
   children: ReactNode;

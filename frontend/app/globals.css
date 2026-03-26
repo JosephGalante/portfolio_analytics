@@ -10,8 +10,8 @@
   --highlight: #e06c2f;
   --accent: #235347;
   --accent-soft: rgba(35, 83, 71, 0.1);
-  --font-sans: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
-  --font-serif: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+  --font-sans: 'Avenir Next', 'Segoe UI', 'Helvetica Neue', sans-serif;
+  --font-serif: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', serif;
 }
 
 * {

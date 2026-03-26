@@ -1,4 +1,4 @@
-import {stytchClient} from "./stytch";
+import {stytchClient} from './stytch';
 
 export function getStoredAuthorizationHeader(): string | null {
   if (stytchClient === null) {

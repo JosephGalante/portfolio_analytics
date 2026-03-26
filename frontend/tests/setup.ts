@@ -1,5 +1,5 @@
-import {cleanup} from "@testing-library/react";
-import {afterEach} from "vitest";
+import {cleanup} from '@testing-library/react';
+import {afterEach} from 'vitest';
 
 function createStorageMock(): Storage {
   let store = new Map<string, string>();
@@ -28,7 +28,7 @@ function createStorageMock(): Storage {
 
 const localStorageMock = createStorageMock();
 
-Object.defineProperty(window, "localStorage", {
+Object.defineProperty(window, 'localStorage', {
   configurable: true,
   value: localStorageMock,
 });

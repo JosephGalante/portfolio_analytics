@@ -1,15 +1,15 @@
-"use client";
+'use client';
 
-import {useQuery, useQueryClient} from "@tanstack/react-query";
-import {useStytchSession} from "@stytch/nextjs";
-import {useRouter} from "next/navigation";
-import {useEffect} from "react";
+import {useQuery, useQueryClient} from '@tanstack/react-query';
+import {useStytchSession} from '@stytch/nextjs';
+import {useRouter} from 'next/navigation';
+import {useEffect} from 'react';
 
-import StytchAuthPanel from "@/components/StytchAuthPanel";
-import {getCurrentUser} from "@/lib/api";
-import {isStytchConfigured} from "@/lib/stytch";
+import StytchAuthPanel from '@/components/StytchAuthPanel';
+import {getCurrentUser} from '@/lib/api';
+import {isStytchConfigured} from '@/lib/stytch';
 
-const authQueryKey = ["auth", "me"] as const;
+const authQueryKey = ['auth', 'me'] as const;
 
 function toErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -29,7 +29,7 @@ export default function AuthPage() {
 
   useEffect(() => {
     if (currentUserQuery.data !== undefined) {
-      router.replace("/");
+      router.replace('/');
     }
   }, [currentUserQuery.data, router]);
 
@@ -89,7 +89,7 @@ export default function AuthPage() {
             <p className="error-banner">
               {toErrorMessage(
                 currentUserQuery.error,
-                "Failed to authenticate session.",
+                'Failed to authenticate session.',
               )}
             </p>
           ) : null}
