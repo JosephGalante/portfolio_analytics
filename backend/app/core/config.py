@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     stytch_project_id: str = ""
     stytch_secret: str = ""
     stytch_api_url: str = "https://test.stytch.com/v1"
+    finnhub_api_key: str = ""
+    finnhub_api_url: str = "https://finnhub.io/api/v1"
+    market_data_poll_interval_ms: int = 15000
+    market_data_request_timeout_seconds: float = 10.0
     simulator_symbols: str = "AAPL,MSFT,NVDA,GOOGL,AMZN"
     simulator_tick_interval_ms: int = 1500
     simulator_initial_price_aapl: str = "185.00"

@@ -87,3 +87,32 @@ async def test_valuation_cold_cache_falls_back_and_warms_redis(
 
     cached_value = await fake_redis.get(portfolio_valuation_key(portfolio_id))
     assert cached_value is not None
+
+
+async def test_valuation_fetches_market_data_when_symbol_cache_is_empty(
+    client: AsyncClient,
+    fake_redis,
+) -> None:
+    portfolio = await create_portfolio(client)
+    portfolio_id = portfolio["id"]
+
+    holding_response = await client.post(
+        f"/portfolios/{portfolio_id}/holdings",
+        json={
+            "symbol": "AAPL",
+            "quantity": "2",
+            "average_cost_basis": "100.00",
+        },
+    )
+    assert holding_response.status_code == 201
+
+    valuation_response = await client.get(f"/portfolios/{portfolio_id}/valuation")
+    assert valuation_response.status_code == 200
+    payload = valuation_response.json()
+
+    assert payload["total_market_value"] == "370"
+    assert payload["total_cost_basis"] == "200"
+    assert payload["unrealized_pnl"] == "170"
+    assert payload["priced_holdings_count"] == 1
+
+    assert await fake_redis.get(symbol_last_price_key("AAPL")) == "185.0000"

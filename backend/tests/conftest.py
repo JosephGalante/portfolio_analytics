@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import sys
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -16,6 +18,7 @@ from app.db.redis import get_redis
 from app.main import app
 from app.models.user import User
 from app.services.auth_service import hash_password
+from app.services.market_data_service import MarketPrice
 from fakeredis.aioredis import FakeRedis
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -115,9 +118,24 @@ async def unauthenticated_client(
         yield async_client
 
     app.dependency_overrides.clear()
+
+
 @pytest.fixture
 def bearer_auth_header():
     def _build(token: str) -> dict[str, str]:
         return {"Authorization": f"Bearer {token}"}
 
     return _build
+
+
+@pytest.fixture(autouse=True)
+def fake_market_data(monkeypatch):
+    async def fetch_latest_price(symbol: str) -> MarketPrice:
+        return MarketPrice(
+            symbol=symbol.upper(),
+            price=Decimal("185.0000"),
+            event_ts=datetime.now(UTC),
+            source="test_feed",
+        )
+
+    monkeypatch.setattr("app.services.market_data_service.fetch_latest_price", fetch_latest_price)

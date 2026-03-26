@@ -16,6 +16,7 @@ from app.core.constants import (
 from app.models.holding import Holding
 from app.models.snapshot import PortfolioSnapshot
 from app.schemas.valuation import PortfolioValuationRead
+from app.services import market_data_service
 
 MONEY_PRECISION = Decimal("0.0001")
 
@@ -61,6 +62,24 @@ async def build_portfolio_valuation(
 
     price_keys = [symbol_last_price_key(holding.symbol) for holding in holdings]
     latest_prices = await redis_client.mget(price_keys) if price_keys else []
+
+    if holdings:
+        missing_symbols = [
+            holding.symbol
+            for holding, latest_price in zip(holdings, latest_prices, strict=True)
+            if latest_price is None
+        ]
+        if missing_symbols:
+            fetched_prices = {}
+            for symbol in sorted(set(missing_symbols)):
+                market_price = await market_data_service.fetch_latest_price(symbol)
+                await redis_client.set(symbol_last_price_key(symbol), str(market_price.price))
+                fetched_prices[symbol] = str(market_price.price)
+
+            latest_prices = [
+                latest_price if latest_price is not None else fetched_prices.get(holding.symbol)
+                for holding, latest_price in zip(holdings, latest_prices, strict=True)
+            ]
 
     total_market_value = Decimal("0")
     total_cost_basis = Decimal("0")

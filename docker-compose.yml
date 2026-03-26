@@ -10,6 +10,10 @@ x-backend-env: &backend-env
   STYTCH_PROJECT_ID: ${STYTCH_PROJECT_ID:-}
   STYTCH_SECRET: ${STYTCH_SECRET:-}
   STYTCH_API_URL: ${STYTCH_API_URL:-https://test.stytch.com/v1}
+  FINNHUB_API_KEY: ${FINNHUB_API_KEY:-}
+  FINNHUB_API_URL: ${FINNHUB_API_URL:-https://finnhub.io/api/v1}
+  MARKET_DATA_POLL_INTERVAL_MS: ${MARKET_DATA_POLL_INTERVAL_MS:-15000}
+  MARKET_DATA_REQUEST_TIMEOUT_SECONDS: ${MARKET_DATA_REQUEST_TIMEOUT_SECONDS:-10}
   SEEDED_USER_EMAIL: ${SEEDED_USER_EMAIL:-demo@example.com}
   SEEDED_USER_NAME: ${SEEDED_USER_NAME:-Demo User}
   SIMULATOR_SYMBOLS: ${SIMULATOR_SYMBOLS:-AAPL,MSFT,NVDA,GOOGL,AMZN}
@@ -97,15 +101,19 @@ services:
         condition: service_completed_successfully
     command: ["python", "-m", "app.workers.valuation_worker"]
 
-  simulator:
+  market-data:
     build:
       context: .
       dockerfile: backend/Dockerfile
     environment: *backend-env
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
-    command: ["python", "-m", "app.workers.simulator"]
+      migrate:
+        condition: service_completed_successfully
+    command: ["python", "-m", "app.workers.market_data_poller"]
 
   frontend:
     build:

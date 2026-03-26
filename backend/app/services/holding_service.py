@@ -44,3 +44,8 @@ async def list_holdings(session: AsyncSession, portfolio_id: UUID) -> list[Holdi
         .order_by(Holding.symbol.asc(), Holding.created_at.asc())
     )
     return list(result.scalars().all())
+
+
+async def list_active_symbols(session: AsyncSession) -> list[str]:
+    result = await session.execute(select(Holding.symbol).distinct().order_by(Holding.symbol.asc()))
+    return list(result.scalars().all())
