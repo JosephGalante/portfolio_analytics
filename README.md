@@ -139,6 +139,7 @@ Env assumptions:
 - Backend-only env vars stay unprefixed: `DATABASE_URL`, `REDIS_URL`, `STYTCH_*`, `FINNHUB_*`, `APP_*`.
 - Browser-exposed frontend env vars must be `NEXT_PUBLIC_*`.
 - Production websocket URLs must use `wss://`, not `ws://`.
+- The backend Docker image now runs `alembic upgrade head` before starting the process command. Set `RUN_DB_MIGRATIONS_ON_START=false` only if you are handling migrations out-of-band.
 
 ### Start Everything
 

@@ -7,6 +7,7 @@ x-backend-env: &backend-env
   APP_CORS_ORIGINS: ${APP_CORS_ORIGINS:-["http://localhost:3000"]}
   DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://portfolio:portfolio@postgres:5432/portfolio_analytics}
   REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+  RUN_DB_MIGRATIONS_ON_START: ${RUN_DB_MIGRATIONS_ON_START:-true}
   RUN_EMBEDDED_WORKERS: ${RUN_EMBEDDED_WORKERS:-false}
   GUEST_DEMO_MODE: ${GUEST_DEMO_MODE:-false}
   GUEST_DEMO_RESET_ON_START: ${GUEST_DEMO_RESET_ON_START:-false}
