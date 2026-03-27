@@ -49,13 +49,22 @@ async def get_current_user(
     if bearer_credentials is None:
         raise _unauthorized("Not authenticated.")
 
-    user = await auth_service.authenticate_stytch_session(
+    user = await auth_service.authenticate_bearer_token(
         session,
-        session_jwt=bearer_credentials.credentials,
+        token=bearer_credentials.credentials,
     )
     if user is None:
         raise _unauthorized("Invalid session.")
     return user
+
+
+async def require_writable_user(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.is_demo:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Guest demo portfolios are read-only.",
+        )
+    return current_user
 
 
 async def get_current_user_from_websocket(
@@ -65,9 +74,9 @@ async def get_current_user_from_websocket(
     authorization = websocket.query_params.get("authorization")
     bearer_credentials = _parse_bearer_authorization(authorization)
     if bearer_credentials is not None:
-        user = await auth_service.authenticate_stytch_session(
+        user = await auth_service.authenticate_bearer_token(
             session,
-            session_jwt=bearer_credentials.token,
+            token=bearer_credentials.token,
         )
         if user is None:
             await websocket.close(

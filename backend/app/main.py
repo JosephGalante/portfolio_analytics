@@ -7,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router
 from app.core.config import get_settings
 from app.db.redis import redis_client
+from app.db.session import AsyncSessionLocal
+from app.services import demo_service
 from app.websocket.manager import connection_manager
 from app.websocket.subscriber import portfolio_updates_listener
 from app.workers.market_data_poller import run_market_data_poller
@@ -28,6 +30,13 @@ async def lifespan(_: FastAPI):
         background_tasks.append(asyncio.create_task(run_market_data_poller()))
 
     try:
+        if settings.is_guest_demo_enabled:
+            async with AsyncSessionLocal() as session:
+                await demo_service.ensure_guest_demo_state(
+                    session,
+                    redis_client,
+                    reset=settings.guest_demo_reset_on_start,
+                )
         yield
     finally:
         for task in background_tasks:

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, status
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_db, require_writable_user
 from app.db.redis import get_redis
 from app.models.user import User
 from app.schemas.holding import HoldingRead, HoldingUpsert
@@ -21,7 +21,7 @@ async def upsert_holding(
     payload: HoldingUpsert,
     session: AsyncSession = Depends(get_db),
     redis_client: Redis = Depends(get_redis),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_writable_user),
 ) -> HoldingRead:
     portfolio = await portfolio_service.get_portfolio_for_user(
         session, portfolio_id, current_user.id

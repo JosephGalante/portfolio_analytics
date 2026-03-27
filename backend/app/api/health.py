@@ -23,7 +23,10 @@ async def readiness(
     redis_client: Redis = Depends(get_redis),
 ) -> dict[str, object]:
     checks: dict[str, str] = {
-        "stytch": "configured" if settings.is_stytch_configured else "missing",
+        "guest_demo": "enabled" if settings.is_guest_demo_enabled else "disabled",
+        "stytch": "configured"
+        if settings.is_stytch_configured
+        else "optional" if settings.is_guest_demo_enabled else "missing",
         "market_data": "configured" if settings.is_market_data_configured else "missing",
         "embedded_workers": "enabled" if settings.run_embedded_workers else "disabled",
     }
@@ -46,7 +49,7 @@ async def readiness(
         errors["redis"] = str(exc)
         is_ready = False
 
-    if not settings.is_stytch_configured:
+    if not settings.is_stytch_configured and not settings.is_guest_demo_enabled:
         errors["stytch"] = "STYTCH_PROJECT_ID and STYTCH_SECRET must both be set."
         is_ready = False
 

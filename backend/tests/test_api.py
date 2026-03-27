@@ -51,6 +51,26 @@ async def test_ready_returns_dependency_and_config_status(
     assert payload["checks"]["embedded_workers"] == "enabled"
 
 
+async def test_ready_allows_guest_demo_without_stytch(
+    client: AsyncClient,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(health_api.settings, "guest_demo_mode", True)
+    monkeypatch.setattr(health_api.settings, "guest_demo_token_secret", "guest-demo-secret")
+    monkeypatch.setattr(health_api.settings, "stytch_project_id", "")
+    monkeypatch.setattr(health_api.settings, "stytch_secret", "")
+    monkeypatch.setattr(health_api.settings, "finnhub_api_key", "finnhub-test")
+    monkeypatch.setattr(health_api.settings, "run_embedded_workers", True)
+
+    response = await client.get("/ready")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "ready"
+    assert payload["checks"]["guest_demo"] == "enabled"
+    assert payload["checks"]["stytch"] == "optional"
+
+
 async def test_holdings_upsert_keeps_single_symbol_row(client: AsyncClient) -> None:
     portfolio = await create_portfolio(client)
 

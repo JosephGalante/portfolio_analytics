@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_db
+from app.api.deps import get_current_user, get_db, require_writable_user
 from app.models.user import User
 from app.schemas.portfolio import PortfolioCreate, PortfolioDetailRead, PortfolioRead
 from app.services import portfolio_service
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/portfolios", tags=["portfolios"])
 async def create_portfolio(
     payload: PortfolioCreate,
     session: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_writable_user),
 ) -> PortfolioRead:
     portfolio = await portfolio_service.create_portfolio(session, current_user, payload.name)
     return PortfolioRead.model_validate(portfolio)

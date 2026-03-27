@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.core.config import get_settings
 from app.models.user import User
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -11,6 +12,7 @@ async def create_user(
     session_factory: async_sessionmaker[AsyncSession],
     *,
     email: str,
+    is_demo: bool = False,
     name: str,
     stytch_user_id: str,
 ) -> User:
@@ -20,6 +22,7 @@ async def create_user(
             name=name,
             password_hash=None,
             stytch_user_id=stytch_user_id,
+            is_demo=is_demo,
         )
         session.add(user)
         await session.commit()
@@ -60,6 +63,7 @@ async def test_fetch_current_user_with_stytch_bearer_auth(
         "id": str(user.id),
         "email": "stytch@example.com",
         "name": "Stytch User",
+        "is_demo": False,
     }
 
 
@@ -114,3 +118,51 @@ async def test_portfolios_are_scoped_with_stytch_bearer_auth(
         headers=bearer_auth_header("beta-session"),
     )
     assert beta_detail_response.status_code == 404
+
+
+async def test_create_guest_session_and_fetch_current_user(
+    unauthenticated_client: AsyncClient,
+    bearer_auth_header,
+    monkeypatch,
+) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "guest_demo_mode", True)
+    monkeypatch.setattr(settings, "guest_demo_token_secret", "guest-demo-test-secret")
+
+    session_response = await unauthenticated_client.post("/auth/guest-session")
+
+    assert session_response.status_code == 201
+    session_payload = session_response.json()
+    assert session_payload["token_type"] == "bearer"
+    assert session_payload["access_token"].startswith("guest_")
+    assert session_payload["user"]["is_demo"] is True
+
+    me_response = await unauthenticated_client.get(
+        "/auth/me",
+        headers=bearer_auth_header(session_payload["access_token"]),
+    )
+
+    assert me_response.status_code == 200
+    assert me_response.json()["is_demo"] is True
+
+
+async def test_guest_demo_user_is_read_only(
+    unauthenticated_client: AsyncClient,
+    bearer_auth_header,
+    monkeypatch,
+) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "guest_demo_mode", True)
+    monkeypatch.setattr(settings, "guest_demo_token_secret", "guest-demo-test-secret")
+
+    session_response = await unauthenticated_client.post("/auth/guest-session")
+    token = session_response.json()["access_token"]
+
+    create_response = await unauthenticated_client.post(
+        "/portfolios",
+        json={"name": "Should Fail"},
+        headers=bearer_auth_header(token),
+    )
+
+    assert create_response.status_code == 403
+    assert create_response.json()["detail"] == "Guest demo portfolios are read-only."

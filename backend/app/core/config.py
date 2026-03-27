@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     market_data_poll_interval_ms: int = 15000
     market_data_request_timeout_seconds: float = 10.0
     run_embedded_workers: bool = False
+    guest_demo_mode: bool = False
+    guest_demo_reset_on_start: bool = False
+    guest_demo_token_secret: str = "local-demo-secret-change-me"
+    guest_demo_session_ttl_minutes: int = 120
+    guest_demo_user_email: str = "guest-demo@portfolio-analytics.local"
+    guest_demo_user_name: str = "Guest Demo"
     simulator_symbols: str = "AAPL,MSFT,NVDA,GOOGL,AMZN"
     simulator_tick_interval_ms: int = 1500
     simulator_initial_price_aapl: str = "185.00"
@@ -57,6 +63,10 @@ class Settings(BaseSettings):
     @property
     def is_market_data_configured(self) -> bool:
         return bool(self.finnhub_api_key.strip())
+
+    @property
+    def is_guest_demo_enabled(self) -> bool:
+        return self.guest_demo_mode and bool(self.guest_demo_token_secret.strip())
 
 
 @lru_cache
