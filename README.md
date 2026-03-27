@@ -2,6 +2,10 @@
 
 Real-time portfolio analytics MVP built to demonstrate backend and systems design skills. The platform models an event-driven architecture: FastAPI serves REST and websocket APIs, Redis carries hot data and events, a background worker recalculates only affected portfolios, PostgreSQL stores durable history, and a Next.js dashboard consumes both REST and pushed updates.
 
+## Live Demo
+
+- UI Website: https://galante-portfolio-analytics-project.vercel.app/
+
 ## Architecture
 
 Services:
