@@ -17,7 +17,11 @@ import {
   listSnapshots,
   upsertHolding,
 } from '@/lib/api';
-import {getStoredAuthorizationHeader} from '@/lib/auth';
+import {
+  clearStoredGuestSessionToken,
+  getStoredAuthorizationHeader,
+  getStoredGuestSessionToken,
+} from '@/lib/auth';
 import {parsePortfolioValuationPayload} from '@/lib/contracts';
 import {isStytchConfigured} from '@/lib/stytch';
 import {Portfolio} from '@/lib/types';
@@ -49,6 +53,14 @@ type HoldingFormValues = {
   symbol: string;
 };
 
+type DashboardShellProps = {
+  guestToken: string | null;
+  hasStytchSession: boolean;
+  isReady: boolean;
+  setGuestToken: (value: string | null) => void;
+  signOutFromStytch: (() => Promise<void>) | null;
+};
+
 function formatMoney(value: string): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -70,15 +82,16 @@ function toErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-export default function Dashboard() {
+function DashboardShell({
+  guestToken,
+  hasStytchSession,
+  isReady,
+  setGuestToken,
+  signOutFromStytch,
+}: DashboardShellProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const stytch = useStytch();
-  const {isInitialized: isStytchInitialized, session: stytchSession} =
-    useStytchSession();
-  const hasStytchSession =
-    isStytchConfigured && isStytchInitialized && stytchSession !== null;
-  const isReady = isStytchConfigured && isStytchInitialized;
+  const hasAnySession = guestToken !== null || hasStytchSession;
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(
     null,
   );
@@ -125,7 +138,7 @@ export default function Dashboard() {
   const currentUserQuery = useQuery({
     queryKey: portfolioQueryKeys.me,
     queryFn: getCurrentUser,
-    enabled: isReady && hasStytchSession,
+    enabled: isReady && hasAnySession,
     retry: false,
   });
 
@@ -137,16 +150,33 @@ export default function Dashboard() {
       return;
     }
 
+    if (guestToken !== null) {
+      clearStoredGuestSessionToken();
+      setGuestToken(null);
+      queryClient.removeQueries({queryKey: portfolioQueryKeys.me});
+
+      if (hasStytchSession) {
+        return;
+      }
+    }
+
     setSelectedPortfolioId(null);
     queryClient.removeQueries({queryKey: portfolioQueryKeys.me});
     router.replace('/auth');
-  }, [currentUserQuery.error, queryClient, router]);
+  }, [
+    currentUserQuery.error,
+    guestToken,
+    hasStytchSession,
+    queryClient,
+    router,
+    setGuestToken,
+  ]);
 
   useEffect(() => {
-    if (isReady && !hasStytchSession) {
+    if (isReady && !hasAnySession) {
       router.replace('/auth');
     }
-  }, [isReady, hasStytchSession, router]);
+  }, [isReady, hasAnySession, router]);
 
   const portfoliosQuery = useQuery({
     queryKey: portfolioQueryKeys.all,
@@ -376,21 +406,24 @@ export default function Dashboard() {
     setActionErrorMessage(null);
     setActionSuccessMessage(null);
     setRealtimeErrorMessage(null);
+    setIsSigningOut(true);
 
-    if (hasStytchSession) {
-      setIsSigningOut(true);
-      try {
-        await stytch.session.revoke({forceClear: true});
-      } catch (error) {
-        setActionErrorMessage(toErrorMessage(error, 'Failed to sign out.'));
-      } finally {
-        setIsSigningOut(false);
+    try {
+      clearStoredGuestSessionToken();
+      setGuestToken(null);
+
+      if (hasStytchSession && signOutFromStytch !== null) {
+        await signOutFromStytch();
       }
-    }
 
-    setSelectedPortfolioId(null);
-    queryClient.clear();
-    router.replace('/auth');
+      setSelectedPortfolioId(null);
+      queryClient.clear();
+      router.replace('/auth');
+    } catch (error) {
+      setActionErrorMessage(toErrorMessage(error, 'Failed to sign out.'));
+    } finally {
+      setIsSigningOut(false);
+    }
   }
 
   async function handleCreatePortfolio(values: CreatePortfolioFormValues) {
@@ -434,18 +467,6 @@ export default function Dashboard() {
     ]);
   }
 
-  if (!isStytchConfigured) {
-    return (
-      <main className="shell auth-shell">
-        <section className="panel auth-panel">
-          <p className="eyebrow">Portfolio Analytics MVP</p>
-          <h1>Stytch is required</h1>
-          <p className="lede">Configure Stytch before loading the dashboard.</p>
-        </section>
-      </main>
-    );
-  }
-
   if (!isReady) {
     return (
       <main className="shell auth-shell">
@@ -460,14 +481,15 @@ export default function Dashboard() {
     );
   }
 
-  if (!hasStytchSession) {
+  if (!hasAnySession) {
     return (
       <main className="shell auth-shell">
         <section className="panel auth-panel">
           <p className="eyebrow">Portfolio Analytics MVP</p>
           <h1>Redirecting to sign in...</h1>
           <p className="lede">
-            You need an authenticated session before the dashboard can load.
+            You need an authenticated or guest-demo session before the dashboard
+            can load.
           </p>
         </section>
       </main>
@@ -481,7 +503,8 @@ export default function Dashboard() {
           <p className="eyebrow">Portfolio Analytics MVP</p>
           <h1>Redirecting to sign in...</h1>
           <p className="lede">
-            You need an authenticated session before the dashboard can load.
+            The current session could not be restored, so the app is returning
+            you to the auth screen.
           </p>
         </section>
       </main>
@@ -495,7 +518,7 @@ export default function Dashboard() {
           <p className="eyebrow">Portfolio Analytics MVP</p>
           <h1>Authenticating your account...</h1>
           <p className="lede">
-            Loading your owned portfolios and live stream access.
+            Loading your portfolios and reconnecting the live stream.
           </p>
         </section>
       </main>
@@ -507,6 +530,7 @@ export default function Dashboard() {
     return null;
   }
 
+  const isDemoUser = currentUser.is_demo;
   const isRefreshing =
     createPortfolioMutation.isPending ||
     upsertHoldingMutation.isPending ||
@@ -556,15 +580,30 @@ export default function Dashboard() {
             Event-driven portfolio monitoring with live valuation updates.
           </h1>
           <p className="lede">
-            Signed in as <strong>{currentUser.name}</strong> (
-            {currentUser.email}). FastAPI serves the portfolio APIs, Redis
-            handles tick propagation and cache reads, and the dashboard listens
-            for websocket pushes as valuations change.
+            {isDemoUser ? (
+              <>
+                Guest demo is active for <strong>{currentUser.name}</strong>. You
+                are viewing seeded read-only portfolios while the same FastAPI,
+                Redis, worker, and websocket pipeline continues to drive live
+                valuation updates.
+              </>
+            ) : (
+              <>
+                Signed in as <strong>{currentUser.name}</strong> (
+                {currentUser.email}). FastAPI serves the portfolio APIs, Redis
+                handles tick propagation and cache reads, and the dashboard
+                listens for websocket pushes as valuations change.
+              </>
+            )}
           </p>
         </div>
         <div className="hero-card">
-          <span>Live Stack</span>
-          <strong>API + Worker + Simulator + Redis + Postgres</strong>
+          <span>{isDemoUser ? 'Guest Demo' : 'Live Stack'}</span>
+          <strong>
+            {isDemoUser
+              ? 'Read-only viewer on the full realtime pipeline'
+              : 'API + Worker + Simulator + Redis + Postgres'}
+          </strong>
           <p>Current mode: {currentMode}</p>
           <div className="status-chip-row">
             <span
@@ -578,6 +617,9 @@ export default function Dashboard() {
             >
               {streamStatusLabel}
             </span>
+            {isDemoUser ? (
+              <span className="status-chip muted">Read-only demo</span>
+            ) : null}
           </div>
           <button
             className="ghost-button auth-signout"
@@ -585,7 +627,11 @@ export default function Dashboard() {
             onClick={() => void handleSignOut()}
             type="button"
           >
-            {isSigningOut ? 'Signing out...' : 'Sign out'}
+            {isSigningOut
+              ? 'Signing out...'
+              : isDemoUser
+                ? 'Leave guest demo'
+                : 'Sign out'}
           </button>
         </div>
       </section>
@@ -614,6 +660,7 @@ export default function Dashboard() {
               <span>New portfolio</span>
               <input
                 disabled={
+                  isDemoUser ||
                   createPortfolioMutation.isPending ||
                   isCreatePortfolioSubmitting
                 }
@@ -628,6 +675,7 @@ export default function Dashboard() {
             </label>
             <button
               disabled={
+                isDemoUser ||
                 createPortfolioMutation.isPending ||
                 isCreatePortfolioSubmitting ||
                 !isCreatePortfolioValid
@@ -639,6 +687,12 @@ export default function Dashboard() {
                 : 'Create portfolio'}
             </button>
           </form>
+          {isDemoUser ? (
+            <p className="empty">
+              Guest demo mode is read-only. Sign in to create your own
+              portfolios.
+            </p>
+          ) : null}
 
           <div className="portfolio-list">
             {portfolios.map((portfolio) => (
@@ -669,7 +723,7 @@ export default function Dashboard() {
             <article className="panel metric-panel">
               <div className="panel-header">
                 <h2>Selected portfolio</h2>
-                <span>{selectedPortfolio ? 'Owned' : 'Idle'}</span>
+                <span>{selectedPortfolio ? (isDemoUser ? 'Demo' : 'Owned') : 'Idle'}</span>
               </div>
               {portfolioDetail ? (
                 <>
@@ -742,6 +796,7 @@ export default function Dashboard() {
                   <span>Symbol</span>
                   <input
                     disabled={
+                      isDemoUser ||
                       selectedPortfolioId === null ||
                       upsertHoldingMutation.isPending ||
                       isHoldingSubmitting
@@ -761,6 +816,7 @@ export default function Dashboard() {
                   <span>Quantity</span>
                   <input
                     disabled={
+                      isDemoUser ||
                       selectedPortfolioId === null ||
                       upsertHoldingMutation.isPending ||
                       isHoldingSubmitting
@@ -780,6 +836,7 @@ export default function Dashboard() {
                   <span>Average cost basis</span>
                   <input
                     disabled={
+                      isDemoUser ||
                       selectedPortfolioId === null ||
                       upsertHoldingMutation.isPending ||
                       isHoldingSubmitting
@@ -798,6 +855,7 @@ export default function Dashboard() {
                 </label>
                 <button
                   disabled={
+                    isDemoUser ||
                     selectedPortfolioId === null ||
                     upsertHoldingMutation.isPending ||
                     isHoldingSubmitting ||
@@ -810,6 +868,12 @@ export default function Dashboard() {
                     : 'Save holding'}
                 </button>
               </form>
+              {isDemoUser ? (
+                <p className="empty">
+                  Guest demo holdings are intentionally locked. Sign in to add or
+                  edit positions.
+                </p>
+              ) : null}
 
               <div className="table-list">
                 {holdings.map((holding) => (
@@ -856,5 +920,85 @@ export default function Dashboard() {
         </section>
       </section>
     </main>
+  );
+}
+
+type DashboardWithStytchProps = {
+  guestToken: string | null;
+  isHydrated: boolean;
+  setGuestToken: (value: string | null) => void;
+};
+
+function DashboardWithStytch({
+  guestToken,
+  isHydrated,
+  setGuestToken,
+}: DashboardWithStytchProps) {
+  const stytch = useStytch();
+  const {isInitialized: isStytchInitialized, session: stytchSession} =
+    useStytchSession();
+  const hasStytchSession = isStytchInitialized && stytchSession !== null;
+  const isReady = isHydrated && (guestToken !== null || isStytchInitialized);
+
+  return (
+    <DashboardShell
+      guestToken={guestToken}
+      hasStytchSession={hasStytchSession}
+      isReady={isReady}
+      setGuestToken={setGuestToken}
+      signOutFromStytch={async () => {
+        await stytch.session.revoke({forceClear: true});
+      }}
+    />
+  );
+}
+
+type DashboardGuestOnlyProps = {
+  guestToken: string | null;
+  isHydrated: boolean;
+  setGuestToken: (value: string | null) => void;
+};
+
+function DashboardGuestOnly({
+  guestToken,
+  isHydrated,
+  setGuestToken,
+}: DashboardGuestOnlyProps) {
+  return (
+    <DashboardShell
+      guestToken={guestToken}
+      hasStytchSession={false}
+      isReady={isHydrated}
+      setGuestToken={setGuestToken}
+      signOutFromStytch={null}
+    />
+  );
+}
+
+export default function Dashboard() {
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [guestToken, setGuestToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    setGuestToken(getStoredGuestSessionToken());
+    setIsHydrated(true);
+  }, []);
+
+  if (!isStytchConfigured) {
+    return (
+      <DashboardGuestOnly
+        guestToken={guestToken}
+        isHydrated={isHydrated}
+        setGuestToken={setGuestToken}
+      />
+    );
+  }
+
+  return (
+    <DashboardWithStytch
+      guestToken={guestToken}
+      isHydrated={isHydrated}
+      setGuestToken={setGuestToken}
+    />
   );
 }

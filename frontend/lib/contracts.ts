@@ -18,7 +18,15 @@ export const portfolioSchema = z.object({
 export const userSchema = z.object({
   id: z.string(),
   email: z.string(),
+  is_demo: z.boolean(),
   name: z.string(),
+});
+
+export const guestSessionSchema = z.object({
+  access_token: z.string(),
+  token_type: z.string(),
+  expires_at: z.string(),
+  user: userSchema,
 });
 
 export const portfolioDetailSchema = portfolioSchema.extend({
@@ -56,6 +64,7 @@ export const portfolioSnapshotSchema = z.object({
 
 export type Portfolio = z.infer<typeof portfolioSchema>;
 export type User = z.infer<typeof userSchema>;
+export type GuestSession = z.infer<typeof guestSessionSchema>;
 export type PortfolioDetail = z.infer<typeof portfolioDetailSchema>;
 export type Holding = z.infer<typeof holdingSchema>;
 export type PortfolioValuation = z.infer<typeof portfolioValuationSchema>;
@@ -128,6 +137,10 @@ export function parsePortfolioPayload(payload: unknown): Portfolio {
 
 export function parseUserPayload(payload: unknown): User {
   return parsePayload(userSchema, payload, 'user');
+}
+
+export function parseGuestSessionPayload(payload: unknown): GuestSession {
+  return parsePayload(guestSessionSchema, payload, 'guest_session');
 }
 
 export function parsePortfoliosPayload(payload: unknown): Portfolio[] {

@@ -1,4 +1,5 @@
 import {
+  parseGuestSessionPayload,
   parseUserPayload,
   parseHoldingPayload,
   parseHoldingsPayload,
@@ -10,6 +11,7 @@ import {
 } from './contracts';
 import {
   CreatePortfolioPayload,
+  GuestSession,
   Holding,
   Portfolio,
   PortfolioDetail,
@@ -45,6 +47,14 @@ async function request(path: string, init?: RequestInit): Promise<unknown> {
 
 export async function getCurrentUser(): Promise<User> {
   return parseUserPayload(await request('/auth/me'));
+}
+
+export async function createGuestSession(): Promise<GuestSession> {
+  return parseGuestSessionPayload(
+    await request('/auth/guest-session', {
+      method: 'POST',
+    }),
+  );
 }
 
 export async function listPortfolios(): Promise<Portfolio[]> {

@@ -243,6 +243,20 @@ input {
   gap: 1rem;
 }
 
+.auth-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.auth-panel h2 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.6rem;
+  line-height: 1.05;
+}
+
 .panel-header {
   display: flex;
   justify-content: space-between;

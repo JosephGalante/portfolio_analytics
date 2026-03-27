@@ -81,6 +81,7 @@ describe('Dashboard', () => {
     apiMocks.getCurrentUser.mockResolvedValue({
       id: 'user-1',
       email: 'tests@example.com',
+      is_demo: false,
       name: 'Test User',
     });
     apiMocks.upsertHolding.mockResolvedValue(undefined);

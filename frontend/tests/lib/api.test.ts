@@ -1,6 +1,6 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
-import {getValuation, listHoldings, listSnapshots} from '@/lib/api';
+import {createGuestSession, getValuation, listHoldings, listSnapshots} from '@/lib/api';
 
 function jsonResponse(payload: unknown, status = 200): Partial<Response> {
   return {
@@ -92,5 +92,33 @@ describe('frontend api client', () => {
     await expect(getValuation('portfolio-1')).rejects.toThrow(
       'Portfolio valuation unavailable.',
     );
+  });
+
+  it('parses guest session payloads', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        access_token: 'guest_test_token',
+        token_type: 'bearer',
+        expires_at: '2026-03-27T12:00:00Z',
+        user: {
+          id: 'user-1',
+          email: 'guest@example.com',
+          name: 'Guest Demo',
+          is_demo: true,
+        },
+      }),
+    );
+
+    await expect(createGuestSession()).resolves.toEqual({
+      access_token: 'guest_test_token',
+      token_type: 'bearer',
+      expires_at: '2026-03-27T12:00:00Z',
+      user: {
+        id: 'user-1',
+        email: 'guest@example.com',
+        name: 'Guest Demo',
+        is_demo: true,
+      },
+    });
   });
 });

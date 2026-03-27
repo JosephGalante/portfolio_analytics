@@ -6,9 +6,20 @@ Real-time portfolio analytics MVP built to demonstrate backend and systems desig
 
 - UI Website: https://galante-portfolio-analytics-project.vercel.app/
 
+Public demo modes:
+- guest demo: one-click, seeded, read-only portfolio access with no inbox or Stytch dependency
+- full auth: optional Stytch-backed password flow for creating and managing your own portfolios
+
+Recommended reviewer path:
+1. Open `/auth`
+2. Click `Try guest demo`
+3. Inspect the seeded portfolios, live valuation panel, and recent snapshots
+4. Use the Stytch flow only if you want to exercise the owned-account path
+
 ## Architecture
 
 Services:
+
 - `api`: FastAPI app exposing portfolios, holdings, valuations, snapshots, and websocket endpoints.
 - `market-data`: polls Finnhub for symbols currently held in user portfolios and publishes changed prices into Redis Stream.
 - `worker`: consumes price ticks from Redis Stream, persists `price_events`, recalculates affected portfolios, stores snapshots, refreshes cache, and publishes live updates.
@@ -17,13 +28,15 @@ Services:
 - `frontend`: Next.js dashboard for creating portfolios, managing holdings, and observing live valuation changes.
 
 Data flow:
+
 1. When a holding is added, the API validates the ticker against Finnhub, stores the holding, and emits an immediate price tick into Redis Stream `price_ticks`.
 2. `market-data` polls Finnhub every few seconds for symbols currently held across all portfolios and only publishes a new tick when the price changes.
 3. `worker` reads each tick, stores a `price_events` row, finds portfolios holding the changed symbol, and recalculates only those portfolios.
 4. `worker` writes the latest valuation to Redis key `portfolio:{id}:valuation`, inserts a `portfolio_snapshots` row in Postgres, and publishes the valuation to `portfolio_updates:{id}`.
 5. `api` listens to Redis Pub/Sub and forwards those messages to websocket clients connected at `/ws/portfolios/{portfolio_id}`.
 6. `frontend` loads initial data via REST and then updates the selected portfolio live through websocket pushes.
-Zero-cost deploy note:
+   Zero-cost deploy note:
+
 - Render's free tier does not include background workers. For a free public deployment, this repo supports `RUN_EMBEDDED_WORKERS=true`, which starts the valuation worker and market-data poller inside the API process. Local Docker Compose still runs them as separate services.
 
 ## Stack
@@ -59,9 +72,11 @@ docker-compose.yml
 ## Implemented API Surface
 
 REST:
+
 - `GET /health`
 - `GET /ready`
 - `GET /auth/me`
+- `POST /auth/guest-session`
 - `POST /portfolios`
 - `GET /portfolios`
 - `GET /portfolios/{portfolio_id}`
@@ -71,11 +86,14 @@ REST:
 - `GET /portfolios/{portfolio_id}/snapshots`
 
 Realtime:
+
 - `GET /ws/portfolios/{portfolio_id}`
 
 Notes:
-- The app supports Stytch-backed password auth end-to-end. The frontend sends a Stytch session JWT as a Bearer token, the backend verifies that session with Stytch, and portfolios remain scoped to the mapped local user record.
+
+- The app supports two auth paths: a Stytch-backed password session for owned accounts, and an app-issued guest-demo bearer token for seeded read-only portfolios.
 - `GET /health` is a cheap liveness check. `GET /ready` verifies Postgres, Redis, and required auth/market-data config before returning `200`.
+- When `GUEST_DEMO_MODE=true`, `GET /ready` still returns `200` without Stytch as long as the guest demo path, Postgres, Redis, and market-data config are healthy.
 - Holdings are upserted by `(portfolio_id, symbol)`.
 - Real quote data comes from Finnhub's free quote endpoint. The app polls only symbols that are actually held, then reuses the existing Redis Stream -> worker -> websocket pipeline.
 - Valuation reads Redis first and falls back to recalculating from holdings plus latest cached symbol prices if the portfolio cache is cold. If a symbol price is missing from Redis, the API fetches the latest price on demand and warms the symbol cache before returning the valuation.
@@ -98,14 +116,26 @@ cp .env.example .env
 ```
 
 Important env vars for the real market-data path:
+
 - `FINNHUB_API_KEY`
+
+Important env vars for guest demo mode:
+
+- `GUEST_DEMO_MODE`
+- `GUEST_DEMO_RESET_ON_START`
+- `GUEST_DEMO_TOKEN_SECRET`
+- `NEXT_PUBLIC_GUEST_DEMO_MODE`
+
+Important env vars for the full Stytch-authenticated path:
+
 - `NEXT_PUBLIC_STYTCH_PUBLIC_TOKEN`
 - `STYTCH_PROJECT_ID`
 - `STYTCH_SECRET`
 
 Env assumptions:
+
 - Docker Compose reads the repo-root `.env`.
-- Local standalone Next.js development reads `frontend/.env.local`, not the root `.env`.
+- Local standalone Next.js development reads `frontend/.env.local`, not the root `.env`. Use [frontend/.env.example](frontend/.env.example) as the template.
 - Backend-only env vars stay unprefixed: `DATABASE_URL`, `REDIS_URL`, `STYTCH_*`, `FINNHUB_*`, `APP_*`.
 - Browser-exposed frontend env vars must be `NEXT_PUBLIC_*`.
 - Production websocket URLs must use `wss://`, not `ws://`.
@@ -117,77 +147,74 @@ docker compose up --build
 ```
 
 Useful URLs:
+
 - API: `http://localhost:8000`
 - API docs: `http://localhost:8000/docs`
 - Health: `http://localhost:8000/health`
 - Readiness: `http://localhost:8000/ready`
 - Frontend: `http://localhost:3000`
 
-### Demo Flow
+### Demo Modes
+
+#### Guest Demo Flow
 
 1. Open the frontend.
-2. Request the password setup email, set your password, and sign in with email + password.
+2. Click `Try guest demo`.
+3. Load the seeded read-only portfolios immediately.
+4. Switch between portfolios and inspect holdings, valuation, and snapshots.
+5. Keep the dashboard open and observe websocket-driven valuation changes as the worker publishes updates.
+
+#### Full Auth Flow
+
+1. Open the frontend.
+2. Use the Stytch sign-in / password-setup panel.
 3. Create a portfolio.
 4. Add holdings such as `AAPL`, `MSFT`, or any other supported symbol.
 5. Watch valuation fetch and cache a real quote immediately.
 6. Keep the dashboard open and observe websocket-driven valuation changes and snapshots as the market-data poller publishes fresh ticks.
 
-## Guest Demo Mode Plan
+## Guest Demo Mode
 
-The current live demo proves the full auth flow, but it asks too much from a cold reviewer. The next presentation-focused iteration should add a guest/demo mode that removes Stytch signup friction while preserving the stronger authenticated product path.
+Guest/demo mode is now implemented. It exists to reduce reviewer friction without introducing a separate fake architecture.
 
-### Goals
+How it works:
 
-- let a recruiter understand the product in under one minute
-- keep the event-driven and realtime backend story intact
-- preserve the full authenticated workflow for engineering review
+- backend seeds one deterministic demo user plus seeded portfolios when `GUEST_DEMO_MODE=true`
+- `POST /auth/guest-session` returns an app-issued signed bearer token for that demo user
+- demo-owned resources are read-only, so create/update actions return `403 Guest demo portfolios are read-only.`
+- the same Redis, websocket, valuation, and snapshot pipeline continues to run underneath the guest experience
 
-### Proposed UX
+Operational knobs:
 
-1. Land on a simple mode picker:
-   - `Try guest demo`
-   - `Sign in to create your own portfolio`
-2. Guest demo opens a seeded portfolio immediately, without email or password setup.
-3. The guest experience is read-only for destructive actions, but still shows:
-   - holdings
-   - live valuation updates
-   - snapshot history
-   - websocket-driven refresh behavior
-4. A persistent CTA lets the reviewer switch into the full authenticated flow afterward.
+- `GUEST_DEMO_MODE=true` enables the guest flow
+- `GUEST_DEMO_RESET_ON_START=true` resets the demo portfolio state when the API process starts
+- `GUEST_DEMO_TOKEN_SECRET=<long random secret>` signs guest bearer tokens
+- `NEXT_PUBLIC_GUEST_DEMO_MODE=true` exposes the guest entry point in the frontend
 
-### Proposed Backend Shape
+Recommended public-demo defaults:
 
-- seed one stable demo user plus one or more demo portfolios during deploy or startup
-- issue a short-lived guest session token that maps to the demo user without requiring Stytch
-- mark demo-owned resources as read-only in API handlers for create, update, and delete paths
-- reset demo portfolios on a schedule or at process start so the public deployment stays deterministic
-- keep the existing worker, Redis Stream, cache, and websocket paths unchanged so the backend architecture being demonstrated does not get watered down
-
-### Nice-To-Have Demo Behavior
-
-- preload 3-5 recognizable symbols such as `AAPL`, `MSFT`, `NVDA`, and `SPY`
-- ship one portfolio with concentrated tech exposure and another more diversified mix
-- if the market is closed, keep the latest cached valuation visible and label it clearly so the screen still looks alive
-- add a `Live architecture` panel that explains `REST bootstrap -> websocket updates -> Redis cache -> worker recompute`
-
-### Acceptance Criteria
-
-- a new visitor can open the deployed app and see a portfolio in under 10 seconds
-- the guest path requires no inbox access and no external auth setup
-- the guest path still exercises the realtime valuation pipeline
-- the full Stytch-authenticated create-your-own-portfolio flow remains available
-- demo data returns to a known state automatically
+- one-click guest demo enabled
+- Stytch sign-in optional
+- reset demo data at startup so the public deployment stays deterministic
 
 ## Free Deployment Plan
 
 This repo can be deployed for zero dollars with:
+
 - `frontend`: Vercel Hobby
 - `backend`: one Render free web service
 - `postgres`: Supabase free Postgres
 - `redis`: Upstash Redis free
 
 The important repo-specific tradeoff is on the backend:
+
 - Render free web services are available, but Render free background workers are not. This repo handles that by running `RUN_EMBEDDED_WORKERS=true` in production so the API, valuation worker, and market-data poller all run in the same Render service.
+
+The strongest public deployment is now a guest-first demo:
+
+- recruiters can reach working portfolio data without inbox setup
+- the guest path still exercises the realtime valuation pipeline
+- the Stytch path can remain available for the "real product" story, but it is no longer required for the first impression
 
 ### 1. Supabase
 
@@ -220,51 +247,61 @@ rediss://:PASSWORD@ENDPOINT:PORT
 ### 3. Render
 
 1. Create a new `Web Service` from this repo.
-2. Set the service to use the repo's Docker configuration with [backend/Dockerfile](/backend/Dockerfile).
+2. Set the service to use the repo's Docker configuration with [backend/Dockerfile](backend/Dockerfile).
 3. Choose the `Free` instance type.
 4. Set the health check path to `/ready`.
-5. Add these env vars in Render:
+5. For a guest-first public demo, add these env vars in Render:
    - `APP_ENV=production`
    - `APP_CORS_ORIGINS=["https://<your-vercel-domain>"]`
    - `DATABASE_URL=<your-supabase-asyncpg-url>`
    - `REDIS_URL=<your-upstash-rediss-url>`
+   - `FINNHUB_API_KEY=<your-finnhub-key>`
+   - `RUN_EMBEDDED_WORKERS=true`
+   - `GUEST_DEMO_MODE=true`
+   - `GUEST_DEMO_RESET_ON_START=true`
+   - `GUEST_DEMO_TOKEN_SECRET=<long-random-secret>`
+6. Optionally add these too if you want the full Stytch-owned-account flow:
    - `STYTCH_PROJECT_ID=<your-stytch-project-id>`
    - `STYTCH_SECRET=<your-stytch-secret>`
    - `STYTCH_API_URL=<match your Stytch environment>`
-   - `FINNHUB_API_KEY=<your-finnhub-key>`
-   - `RUN_EMBEDDED_WORKERS=true`
-6. Deploy the service.
-7. Note the final Render backend URL, for example `https://portfolio-analytics-api.onrender.com`.
+7. Deploy the service.
+8. Note the final Render backend URL, for example `https://portfolio-analytics-api.onrender.com`.
 
 ### 4. Vercel
 
 1. Import the same repo into Vercel as a separate project.
 2. Set the root directory to `frontend`.
-3. Add these env vars in Vercel:
+3. For a guest-first public demo, add these env vars in Vercel:
    - `NEXT_PUBLIC_API_BASE_URL=https://<your-render-service>.onrender.com`
    - `NEXT_PUBLIC_WS_BASE_URL=wss://<your-render-service>.onrender.com`
+   - `NEXT_PUBLIC_GUEST_DEMO_MODE=true`
+4. Optionally add these too if you want the Stytch sign-in path in the deployed UI:
    - `NEXT_PUBLIC_STYTCH_PUBLIC_TOKEN=<your-stytch-public-token>`
    - `NEXT_PUBLIC_STYTCH_LOGIN_REDIRECT_URL=https://<your-vercel-domain>`
    - `NEXT_PUBLIC_STYTCH_PASSWORD_RESET_REDIRECT_URL=https://<your-vercel-domain>/authenticate`
-4. Deploy.
+5. Deploy.
 
 ### 5. Stytch
 
-1. In Stytch, make sure the project environment matches the API base URL you set on the backend.
-2. Add your deployed frontend URLs as redirect URLs:
+1. This step is only needed if you want the full authenticated flow in the deployed app.
+2. In Stytch, make sure the project environment matches the API base URL you set on the backend.
+3. Add your deployed frontend URLs as redirect URLs:
    - `https://<your-vercel-domain>`
    - `https://<your-vercel-domain>/authenticate`
-3. Use the Stytch public token in Vercel and the project ID plus secret in Render.
+4. Use the Stytch public token in Vercel and the project ID plus secret in Render.
 
 ### 6. Post-Deploy Check
 
 1. Open `https://<your-render-service>.onrender.com/health` and confirm it returns `200`.
-2. Open `https://<your-render-service>.onrender.com/ready` and confirm it returns `200` with `database`, `redis`, `stytch`, and `market_data` all healthy/configured.
-3. Open the Vercel frontend, complete password setup, sign in, create a portfolio, add a holding, and confirm the valuation updates live.
+2. Open `https://<your-render-service>.onrender.com/ready` and confirm it returns `200` with `database`, `redis`, `market_data`, and `guest_demo` healthy/configured. `stytch` may be `optional` if you deployed guest-only mode.
+3. Open the Vercel frontend, click `Try guest demo`, and confirm that a seeded read-only portfolio loads immediately.
+4. Verify that valuation and recent snapshots update over time without touching Stytch.
+5. If Stytch is also configured, verify that the sign-in path still works and can create owned portfolios.
 
 ## Verification Status
 
 Verified in this session:
+
 - `backend/.venv/bin/pytest backend/tests`
 - `backend/.venv/bin/python -m ruff check backend/app backend/tests`
 - `npm --prefix frontend run syntax`
@@ -285,6 +322,7 @@ Verified in this session:
 ## Ideal Paid Version
 
 If budget were available, I would replace the free polling path with a licensed real-time feed and a dedicated ingestion service:
+
 - use a paid equities provider with exchange-licensed streaming data
 - keep a persistent upstream websocket or SIP/direct feed connection instead of polling REST endpoints
 - fan quotes into Redis Streams or Kafka with provider timestamps preserved
