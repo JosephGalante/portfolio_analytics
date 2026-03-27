@@ -132,6 +132,52 @@ Useful URLs:
 5. Watch valuation fetch and cache a real quote immediately.
 6. Keep the dashboard open and observe websocket-driven valuation changes and snapshots as the market-data poller publishes fresh ticks.
 
+## Guest Demo Mode Plan
+
+The current live demo proves the full auth flow, but it asks too much from a cold reviewer. The next presentation-focused iteration should add a guest/demo mode that removes Stytch signup friction while preserving the stronger authenticated product path.
+
+### Goals
+
+- let a recruiter understand the product in under one minute
+- keep the event-driven and realtime backend story intact
+- preserve the full authenticated workflow for engineering review
+
+### Proposed UX
+
+1. Land on a simple mode picker:
+   - `Try guest demo`
+   - `Sign in to create your own portfolio`
+2. Guest demo opens a seeded portfolio immediately, without email or password setup.
+3. The guest experience is read-only for destructive actions, but still shows:
+   - holdings
+   - live valuation updates
+   - snapshot history
+   - websocket-driven refresh behavior
+4. A persistent CTA lets the reviewer switch into the full authenticated flow afterward.
+
+### Proposed Backend Shape
+
+- seed one stable demo user plus one or more demo portfolios during deploy or startup
+- issue a short-lived guest session token that maps to the demo user without requiring Stytch
+- mark demo-owned resources as read-only in API handlers for create, update, and delete paths
+- reset demo portfolios on a schedule or at process start so the public deployment stays deterministic
+- keep the existing worker, Redis Stream, cache, and websocket paths unchanged so the backend architecture being demonstrated does not get watered down
+
+### Nice-To-Have Demo Behavior
+
+- preload 3-5 recognizable symbols such as `AAPL`, `MSFT`, `NVDA`, and `SPY`
+- ship one portfolio with concentrated tech exposure and another more diversified mix
+- if the market is closed, keep the latest cached valuation visible and label it clearly so the screen still looks alive
+- add a `Live architecture` panel that explains `REST bootstrap -> websocket updates -> Redis cache -> worker recompute`
+
+### Acceptance Criteria
+
+- a new visitor can open the deployed app and see a portfolio in under 10 seconds
+- the guest path requires no inbox access and no external auth setup
+- the guest path still exercises the realtime valuation pipeline
+- the full Stytch-authenticated create-your-own-portfolio flow remains available
+- demo data returns to a known state automatically
+
 ## Free Deployment Plan
 
 This repo can be deployed for zero dollars with:
