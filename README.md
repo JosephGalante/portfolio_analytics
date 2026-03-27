@@ -170,7 +170,7 @@ rediss://:PASSWORD@ENDPOINT:PORT
 ### 3. Render
 
 1. Create a new `Web Service` from this repo.
-2. Set the service to use the repo's Docker configuration with [backend/Dockerfile](/Users/joe/Desktop/sand/portfolio_analytics/backend/Dockerfile).
+2. Set the service to use the repo's Docker configuration with [backend/Dockerfile](/backend/Dockerfile).
 3. Choose the `Free` instance type.
 4. Set the health check path to `/ready`.
 5. Add these env vars in Render:
